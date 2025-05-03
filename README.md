@@ -124,3 +124,113 @@ Database: MongoDB (as requested)
 Authentication: JWT (JSON Web Tokens)
 API: RESTful API architecture
 Documentation: Swagger/OpenAPI
+
+
+
+User Collection
+javascript{
+  _id: ObjectId,
+  username: String,
+  email: String,
+  password: String (hashed),
+  profile: {
+    name: String,
+    preferences: {
+      learningStyle: String, // visual, textual, interactive
+      difficulty: String // beginner, intermediate, advanced
+    },
+    lastActive: Date
+  },
+  createdAt: Date,
+  updatedAt: Date
+}
+Content Collection
+javascript{
+  _id: ObjectId,
+  moduleId: Number,
+  sectionId: Number,
+  title: String,
+  type: String, // text, video, audio, interactive, 3d
+  content: String, // HTML content or reference to media file
+  difficulty: String, // beginner, intermediate, advanced
+  prerequisites: [ObjectId], // references to other content items
+  metadata: {
+    duration: Number, // estimated time in minutes
+    keywords: [String],
+    learningStyles: [String] // which learning styles this content suits
+  },
+  createdAt: Date,
+  updatedAt: Date
+}
+Quiz Collection
+javascript{
+  _id: ObjectId,
+  moduleId: Number,
+  sectionId: Number,
+  title: String,
+  questions: [{
+    questionId: ObjectId,
+    text: String,
+    type: String, // multiple-choice, true-false, matching
+    options: [{
+      id: String,
+      text: String,
+      isCorrect: Boolean
+    }],
+    difficulty: String, // easy, medium, hard
+    explanation: String // explanation for the correct answer
+  }],
+  createdAt: Date,
+  updatedAt: Date
+}
+Progress Collection
+javascript{
+  _id: ObjectId,
+  userId: ObjectId,
+  contentProgress: [{
+    contentId: ObjectId,
+    completed: Boolean,
+    timeSpent: Number, // in seconds
+    lastAccessed: Date
+  }],
+  quizProgress: [{
+    quizId: ObjectId,
+    attempts: Number,
+    score: Number,
+    lastAttempt: Date,
+    answers: [{
+      questionId: ObjectId,
+      selectedOption: String,
+      isCorrect: Boolean,
+      timeSpent: Number // in seconds
+    }]
+  }],
+  moduleCompletion: [{
+    moduleId: Number,
+    progress: Number, // percentage
+    quizScores: [Number]
+  }],
+  createdAt: Date,
+  updatedAt: Date
+}
+LearningPath Collection
+javascript{
+  _id: ObjectId,
+  userId: ObjectId,
+  currentModule: Number,
+  currentSection: Number,
+  recommendedContent: [ObjectId], // content IDs
+  adaptiveSuggestions: [{
+    contentId: ObjectId,
+    reason: String, // why this content is suggested
+    priority: Number
+  }],
+  strengths: [String], // topics the user is good at
+  weaknesses: [String], // topics the user needs to improve
+  createdAt: Date,
+  updatedAt: Date
+}
+
+
+
+
