@@ -25,4 +25,14 @@ router.get('/user', auth, authController.getCurrentUser);
 // @access  Private
 router.put('/preferences', auth, authController.updatePreferences);
 
+// @route   GET api/auth/profile
+// @desc    Get user profile
+// @access  Private
+router.get('/profile', auth, authController.getUserProfile);
+
+// @route   DELETE api/auth/account
+// @desc    Delete user account
+// @access  Private
+router.delete('/account', auth, authController.deleteAccount);
+
 module.exports = router;

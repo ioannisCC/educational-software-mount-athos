@@ -70,3 +70,25 @@ export const initializeAuth = () => {
   }
   return false;
 };
+
+// Get user profile with progress
+export const getUserProfile = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/profile`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to get profile' };
+    }
+  };
+  
+  // Delete user account
+export const deleteAccount = async () => {
+    try {
+      const response = await axios.delete(`${API_URL}/account`);
+      // Clear the token on successful deletion
+      setAuthToken(null);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to delete account' };
+    }
+  };

@@ -13,6 +13,7 @@ import Module2 from './pages/Module2';
 import Module3 from './pages/Module3';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import Profile from './pages/Profile';
 
 const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -62,6 +63,12 @@ const App = () => {
             <Route path="/" element={<Home isAuthenticated={isAuthenticated} />} />
             <Route path="/login" element={<Login setIsAuthenticated={setIsAuthenticated} setUser={setUser} />} />
             <Route path="/register" element={<Register setIsAuthenticated={setIsAuthenticated} setUser={setUser} />} />
+
+            <Route path="/profile" element={
+            <ProtectedRoute>
+                <Profile setIsAuthenticated={setIsAuthenticated} setUser={setUser} />
+            </ProtectedRoute>
+            } />
             
             <Route path="/module/1" element={
               <ProtectedRoute>

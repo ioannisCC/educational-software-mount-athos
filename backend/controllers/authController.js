@@ -1,5 +1,6 @@
 // backend/controllers/authController.js
 const User = require('../models/User');
+const Progress = require('../models/Progress');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
@@ -133,3 +134,53 @@ exports.updatePreferences = async (req, res) => {
     res.status(500).send('Server error');
   }
 };
+
+// Get user profile
+exports.getUserProfile = async (req, res) => {
+    try {
+      const user = await User.findById(req.user.id).select('-password');
+      
+      // Get user progress summary
+      const progress = await Progress.findOne({ userId: req.user.id });
+      
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      res.json({
+        user,
+        progress: progress ? {
+          completedContents: progress.contentProgress.filter(item => item.completed).length,
+          quizzesTaken: progress.quizResults.length,
+          overallProgress: progress.moduleProgress.reduce((acc, curr) => acc + curr.progress, 0) / 
+                            progress.moduleProgress.length
+        } : null
+      });
+    } catch (err) {
+      console.error(err.message);
+      res.status(500).send('Server error');
+    }
+  };
+
+// Delete user account
+exports.deleteAccount = async (req, res) => {
+    try {
+      // Find user
+      const user = await User.findById(req.user.id);
+      
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      // Delete user progress data
+      await Progress.deleteMany({ userId: req.user.id });
+      
+      // Delete user
+      await User.findByIdAndDelete(req.user.id);
+      
+      res.json({ message: 'User account and all associated data deleted successfully' });
+    } catch (err) {
+      console.error(err.message);
+      res.status(500).send('Server error');
+    }
+  };

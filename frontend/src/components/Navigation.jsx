@@ -37,6 +37,11 @@ const Navigation = ({ isAuthenticated, setIsAuthenticated }) => {
                 </li>
               </>
             )}
+            {isAuthenticated && (
+                <li className="nav-item">
+                    <Link className="nav-link" to="/profile">Profile</Link>
+                </li>
+                )}
           </ul>
           <ul className="navbar-nav">
             {isAuthenticated ? (
