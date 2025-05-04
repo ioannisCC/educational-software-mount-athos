@@ -1,6 +1,7 @@
 // backend/controllers/quizController.js
 const Quiz = require('../models/Quiz');
 const Progress = require('../models/Progress');
+const Content = require('../models/Content');
 
 // Get quizzes by module ID
 exports.getQuizzesByModule = async (req, res) => {
