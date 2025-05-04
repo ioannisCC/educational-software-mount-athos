@@ -1,7 +1,7 @@
 // frontend/src/services/auth.js
 import axios from 'axios';
 
-const API_URL = 'http://localhost:5000/api/auth';
+const API_URL = 'http://localhost:5001/api/auth';
 
 // Set auth token
 const setAuthToken = (token) => {

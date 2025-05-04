@@ -1,6 +1,7 @@
 // backend/models/Progress.js
 
 const mongoose = require('mongoose');
+const { type } = require('os');
 
 // Create progress schema
 const progressSchema = new mongoose.Schema({
@@ -37,7 +38,11 @@ const progressSchema = new mongoose.Schema({
       max: 100
     },
     answers: [{
-      questionId: Number,
+      questionId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Quiz.questions',
+        required: true
+      },
       isCorrect: Boolean
     }]
   }],
