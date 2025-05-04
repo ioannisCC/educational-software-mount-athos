@@ -15,15 +15,30 @@ router.get('/modules', auth, contentController.getModules);
 // @access  Private
 router.get('/module/:moduleId', auth, contentController.getContentByModule);
 
-// @route   GET api/content/:contentId
+// @route   GET api/content/:id
 // @desc    Get specific content by id
 // @access  Private
-router.get('/:contentId', auth, contentController.getContentById);
+router.get('/:id', auth, contentController.getContentById);
 
 // @route   POST api/content
 // @desc    Create new content (admin only)
 // @access  Private/Admin
 router.post('/', auth, contentController.createContent);
+
+// @route   PUT api/content/:id
+// @desc    Update content by id
+// @access  Private/Admin
+router.put('/:id', auth, contentController.updateContent);
+
+// @route   DELETE api/content/:id
+// @desc    Delete content by id
+// @access  Private/Admin
+router.delete('/:id', auth, contentController.deleteContent);
+
+// @route   DELETE api/content/module/:moduleId
+// @desc    Delete all content for a module
+// @access  Private/Admin
+router.delete('/module/:moduleId', auth, contentController.deleteModule);
 
 // @route   GET api/content/search
 // @desc    Search content by keyword

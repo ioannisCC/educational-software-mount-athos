@@ -7,9 +7,15 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 
+// Import routes
+const authRoutes = require('./routes/authRoutes');
+const contentRoutes = require('./routes/contentRoutes');
+const quizRoutes = require('./routes/quizRoutes');
+const progressRoutes = require('./routes/progressRoutes');
+
 // Create the app
 const app = express();
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 5000;
 
 // Set up middleware
 app.use(cors());
@@ -20,10 +26,11 @@ mongoose.connect('mongodb+srv://ioanniscatargiu:mountathos@cluster.qp2teap.mongo
   .then(() => console.log('Connected to MongoDB'))
   .catch(err => console.error('MongoDB connection error:', err));
 
-// define routes
-app.use('/api/auth', require('./routes/authRoutes'));
-app.use('/api/content', require('./routes/contentRoutes'));
-app.use('/api/progress', require('./routes/progressRoutes'));
+// Define routes
+app.use('/api/auth', authRoutes);
+app.use('/api/content', contentRoutes);
+app.use('/api/quiz', quizRoutes);
+app.use('/api/progress', progressRoutes);
 
 // Simple test route
 app.get('/', (req, res) => {

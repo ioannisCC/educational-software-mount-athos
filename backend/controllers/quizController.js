@@ -89,20 +89,21 @@ exports.updateQuiz = async (req, res) => {
 
 // Delete quiz
 exports.deleteQuiz = async (req, res) => {
-  try {
-    const quiz = await Quiz.findById(req.params.id);
-    
-    if (!quiz) {
-      return res.status(404).json({ message: 'Quiz not found' });
+    try {
+      const quiz = await Quiz.findById(req.params.id);
+      
+      if (!quiz) {
+        return res.status(404).json({ message: 'Quiz not found' });
+      }
+      
+      // Use deleteOne instead of remove
+      await Quiz.deleteOne({ _id: req.params.id });
+      res.json({ message: 'Quiz removed' });
+    } catch (err) {
+      console.error(err.message);
+      res.status(500).send('Server error');
     }
-    
-    await quiz.remove();
-    res.json({ message: 'Quiz removed' });
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server error');
-  }
-};
+  };
 
 // Submit quiz answers
 exports.submitQuiz = async (req, res) => {
@@ -166,20 +167,67 @@ exports.submitQuiz = async (req, res) => {
 
 // Helper function to recalculate module progress
 async function recalculateModuleProgress(userId, moduleId) {
-  try {
-    // Get all content for this module
-    const progress = await Progress.findOne({ userId });
-    
-    // Calculate progress based on completed content and quiz scores
-    // This is a simplified approach - customize based on your needs
-    
-    // Update module progress
-    await Progress.findOneAndUpdate(
-      { userId, 'moduleProgress.moduleId': moduleId },
-      { $set: { 'moduleProgress.$.progress': calculatedProgress } },
-      { upsert: true }
-    );
-  } catch (err) {
-    console.error(err.message);
+    try {
+      // Get progress document
+      const progress = await Progress.findOne({ userId });
+      if (!progress) return;
+      
+      // Get all content for this module
+      const moduleContent = await Content.find({ moduleId });
+      const moduleContentIds = moduleContent.map(item => item._id.toString());
+      
+      // Count completed content
+      const completedContent = progress.contentProgress.filter(
+        item => moduleContentIds.includes(item.contentId.toString()) && item.completed
+      );
+      
+      // Get all quizzes for this module
+      const moduleQuizzes = await Quiz.find({ moduleId });
+      const moduleQuizIds = moduleQuizzes.map(item => item._id.toString());
+      
+      // Calculate quiz scores (average of best attempts)
+      let quizScores = 0;
+      let quizCount = 0;
+      
+      moduleQuizIds.forEach(quizId => {
+        const quizResults = progress.quizResults.filter(
+          result => result.quizId.toString() === quizId
+        );
+        
+        if (quizResults.length > 0) {
+          const bestScore = Math.max(...quizResults.map(result => result.score));
+          quizScores += bestScore;
+          quizCount++;
+        }
+      });
+      
+      // Calculate progress percentages
+      const contentProgressPercentage = moduleContent.length > 0 
+        ? (completedContent.length / moduleContent.length) * 70 // 70% weight
+        : 0;
+        
+      const quizProgressPercentage = quizCount > 0
+        ? (quizScores / quizCount) * 0.3 // 30% weight
+        : 0;
+      
+      const calculatedProgress = Math.round(contentProgressPercentage + quizProgressPercentage);
+      
+      // Update module progress
+      const moduleProgressIndex = progress.moduleProgress.findIndex(
+        item => item.moduleId === moduleId
+      );
+      
+      if (moduleProgressIndex >= 0) {
+        progress.moduleProgress[moduleProgressIndex].progress = calculatedProgress;
+      } else {
+        progress.moduleProgress.push({
+          moduleId,
+          progress: calculatedProgress
+        });
+      }
+      
+      await progress.save();
+    } catch (err) {
+      console.error('Error calculating module progress:', err.message);
+    }
   }
-}

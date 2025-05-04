@@ -99,20 +99,21 @@ exports.updateContent = async (req, res) => {
 
 // Delete content
 exports.deleteContent = async (req, res) => {
-  try {
-    const content = await Content.findById(req.params.id);
-    
-    if (!content) {
-      return res.status(404).json({ message: 'Content not found' });
+    try {
+      const content = await Content.findById(req.params.id);
+      
+      if (!content) {
+        return res.status(404).json({ message: 'Content not found' });
+      }
+      
+      // Use deleteOne instead of remove
+      await Content.deleteOne({ _id: req.params.id });
+      res.json({ message: 'Content removed' });
+    } catch (err) {
+      console.error(err.message);
+      res.status(500).send('Server error');
     }
-    
-    await content.remove();
-    res.json({ message: 'Content removed' });
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server error');
-  }
-};
+  };
 
 // Delete all content for a module
 exports.deleteModule = async (req, res) => {
@@ -134,3 +135,26 @@ exports.deleteModule = async (req, res) => {
     res.status(500).send('Server error');
   }
 };
+
+exports.searchContent = async (req, res) => {
+    try {
+      const { term } = req.query;
+      
+      if (!term) {
+        return res.status(400).json({ message: 'Search term is required' });
+      }
+      
+      // Search in title and content fields
+      const searchResults = await Content.find({
+        $or: [
+          { title: { $regex: term, $options: 'i' } },
+          { content: { $regex: term, $options: 'i' } }
+        ]
+      });
+      
+      res.json(searchResults);
+    } catch (err) {
+      console.error(err.message);
+      res.status(500).send('Server error');
+    }
+  };

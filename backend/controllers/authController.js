@@ -104,16 +104,16 @@ exports.login = async (req, res) => {
 };
 
 // Get user
-exports.getUser = async (req, res) => {
-  try {
-    // req.user.id comes from auth middleware
-    const user = await User.findById(req.user.id).select('-password');
-    res.json(user);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server error');
-  }
-};
+exports.getCurrentUser = async (req, res) => {
+    try {
+      // req.user.id comes from auth middleware
+      const user = await User.findById(req.user.id).select('-password');
+      res.json(user);
+    } catch (err) {
+      console.error(err.message);
+      res.status(500).send('Server error');
+    }
+  };
 
 // Update user preferences
 exports.updatePreferences = async (req, res) => {
