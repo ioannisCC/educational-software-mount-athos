@@ -13,24 +13,14 @@ exports.getProgressOverview = async (req, res) => {
     let userProgress = await Progress.findOne({ userId });
     
     if (!userProgress) {
-      // Initialize with empty progress if not exists
-      userProgress = new Progress({
-        userId,
-        contentProgress: [],
-        quizResults: [],
-        moduleProgress: [
-          { moduleId: 1, progress: 0 },
-          { moduleId: 2, progress: 0 },
-          { moduleId: 3, progress: 0 }
-        ]
-      });
-      await userProgress.save();
+      // Create with default structure
+      userProgress = await createDefaultProgress(userId);
     }
     
     res.json({
-      moduleProgress: userProgress.moduleProgress,
-      completedContents: userProgress.contentProgress.filter(item => item.completed).length,
-      quizzesTaken: userProgress.quizResults.length
+      moduleProgress: userProgress.moduleProgress || [],
+      completedContents: userProgress.contentProgress ? userProgress.contentProgress.filter(item => item.completed).length : 0,
+      quizzesTaken: userProgress.quizResults ? userProgress.quizResults.length : 0
     });
   } catch (error) {
     console.error('Get progress overview error:', error);
@@ -38,7 +28,7 @@ exports.getProgressOverview = async (req, res) => {
   }
 };
 
-// Mark content as viewed/completed
+// Mark content as viewed/completed - FIXED with atomic operations
 exports.updateContentProgress = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -50,59 +40,25 @@ exports.updateContentProgress = async (req, res) => {
       return res.status(404).json({ message: 'Content not found' });
     }
     
-    // Find or create progress document
-    let userProgress = await Progress.findOne({ userId });
+    // Use atomic operations to avoid version conflicts
+    const updateResult = await updateContentProgressAtomic(userId, contentId, completed, content.moduleId);
     
-    if (!userProgress) {
-      userProgress = new Progress({
-        userId,
-        contentProgress: [],
-        quizResults: [],
-        moduleProgress: [
-          { moduleId: 1, progress: 0 },
-          { moduleId: 2, progress: 0 },
-          { moduleId: 3, progress: 0 }
-        ]
+    if (updateResult.success) {
+      res.json({
+        message: 'Progress updated',
+        contentProgress: updateResult.contentProgress,
+        moduleProgress: updateResult.moduleProgress
       });
-    }
-    
-    // Update content progress
-    const existingProgress = userProgress.contentProgress.find(
-      item => item.contentId.toString() === contentId
-    );
-    
-    if (existingProgress) {
-      existingProgress.completed = completed;
-      existingProgress.lastAccessed = Date.now();
     } else {
-      userProgress.contentProgress.push({
-        contentId,
-        completed,
-        lastAccessed: Date.now()
-      });
+      res.status(500).json({ message: 'Failed to update progress' });
     }
-    
-    // Recalculate module progress
-    await recalculateModuleProgress(userProgress, content.moduleId);
-    
-    await userProgress.save();
-    
-    res.json({
-      message: 'Progress updated',
-      contentProgress: userProgress.contentProgress.find(
-        item => item.contentId.toString() === contentId
-      ),
-      moduleProgress: userProgress.moduleProgress.find(
-        item => item.moduleId === content.moduleId
-      )
-    });
   } catch (error) {
     console.error('Update content progress error:', error);
     res.status(500).json({ message: 'Server error updating progress' });
   }
 };
 
-// Save quiz results
+// Save quiz results - FIXED with atomic operations
 exports.saveQuizResults = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -114,45 +70,80 @@ exports.saveQuizResults = async (req, res) => {
       return res.status(404).json({ message: 'Quiz not found' });
     }
     
-    // Find or create progress document
-    let userProgress = await Progress.findOne({ userId });
-    
-    if (!userProgress) {
-      userProgress = new Progress({
-        userId,
-        contentProgress: [],
-        quizResults: [],
-        moduleProgress: [
-          { moduleId: 1, progress: 0 },
-          { moduleId: 2, progress: 0 },
-          { moduleId: 3, progress: 0 }
-        ]
-      });
-    }
-    
-    // Add or update quiz result
-    const existingQuizResult = userProgress.quizResults.findIndex(
-      result => result.quizId.toString() === quizId
-    );
-    
-    if (existingQuizResult > -1) {
-      userProgress.quizResults[existingQuizResult] = {
-        quizId,
-        score,
-        answers
-      };
+    // Use atomic operation to save quiz results
+    const quizResult = {
+      quizId,
+      score,
+      answers,
+      attemptNumber: 1,
+      totalTimeSpent: 0,
+      completedAt: new Date()
+    };
+
+    // Check if this quiz was already attempted
+    const existingProgress = await Progress.findOne({
+      userId,
+      'quizResults.quizId': quizId
+    });
+
+    let updateResult;
+    if (existingProgress) {
+      // Update existing quiz result
+      updateResult = await Progress.findOneAndUpdate(
+        { 
+          userId,
+          'quizResults.quizId': quizId 
+        },
+        {
+          $set: {
+            'quizResults.$.score': score,
+            'quizResults.$.answers': answers,
+            'quizResults.$.completedAt': new Date(),
+            updatedAt: new Date()
+          },
+          $inc: {
+            'quizResults.$.attemptNumber': 1
+          }
+        },
+        { new: true }
+      );
     } else {
-      userProgress.quizResults.push({
-        quizId,
-        score,
-        answers
-      });
+      // Add new quiz result
+      updateResult = await Progress.findOneAndUpdate(
+        { userId },
+        {
+          $push: { quizResults: quizResult },
+          $set: { updatedAt: new Date() }
+        },
+        { 
+          new: true, 
+          upsert: true,
+          setDefaultsOnInsert: true
+        }
+      );
+
+      // If document was created, initialize it properly
+      if (!updateResult.moduleProgress || updateResult.moduleProgress.length === 0) {
+        updateResult = await Progress.findOneAndUpdate(
+          { userId },
+          {
+            $set: {
+              moduleProgress: [
+                { moduleId: 1, progress: 0 },
+                { moduleId: 2, progress: 0 },
+                { moduleId: 3, progress: 0 }
+              ]
+            }
+          },
+          { new: true }
+        );
+      }
     }
-    
-    // Recalculate module progress
-    await recalculateModuleProgress(userProgress, quiz.moduleId);
-    
-    await userProgress.save();
+
+    // Recalculate module progress separately to avoid conflicts
+    setTimeout(() => {
+      recalculateModuleProgressAsync(userId, quiz.moduleId);
+    }, 100);
     
     res.json({
       message: 'Quiz results saved',
@@ -160,10 +151,7 @@ exports.saveQuizResults = async (req, res) => {
         quizId,
         score,
         answers
-      },
-      moduleProgress: userProgress.moduleProgress.find(
-        item => item.moduleId === quiz.moduleId
-      )
+      }
     });
   } catch (error) {
     console.error('Save quiz results error:', error);
@@ -221,9 +209,143 @@ exports.getModuleProgress = async (req, res) => {
   }
 };
 
-// Helper function to recalculate module progress
-async function recalculateModuleProgress(userProgress, moduleId) {
+// Helper function to create default progress
+async function createDefaultProgress(userId) {
   try {
+    const defaultProgress = new Progress({
+      userId,
+      contentProgress: [],
+      quizResults: [],
+      moduleProgress: [
+        { moduleId: 1, progress: 0 },
+        { moduleId: 2, progress: 0 },
+        { moduleId: 3, progress: 0 }
+      ],
+      behaviorData: [],
+      derivedPreferences: {
+        preferredContentType: 'text',
+        averageTimePerContent: 0,
+        learningPace: 'medium',
+        difficultyPreference: 'mixed',
+        lastAnalysisDate: new Date()
+      },
+      recommendations: {
+        nextContent: [],
+        remedialContent: [],
+        advancedContent: [],
+        lastUpdated: new Date()
+      }
+    });
+
+    return await defaultProgress.save();
+  } catch (error) {
+    console.error('Error creating default progress:', error);
+    throw error;
+  }
+}
+
+// Atomic content progress update function
+async function updateContentProgressAtomic(userId, contentId, completed, moduleId) {
+  try {
+    // Check if content progress already exists
+    const existing = await Progress.findOne({
+      userId,
+      'contentProgress.contentId': contentId
+    });
+
+    let updateResult;
+    if (existing) {
+      // Update existing content progress
+      updateResult = await Progress.findOneAndUpdate(
+        { 
+          userId,
+          'contentProgress.contentId': contentId 
+        },
+        {
+          $set: {
+            'contentProgress.$.completed': completed,
+            'contentProgress.$.lastAccessed': new Date(),
+            updatedAt: new Date()
+          }
+        },
+        { new: true }
+      );
+    } else {
+      // Add new content progress
+      updateResult = await Progress.findOneAndUpdate(
+        { userId },
+        {
+          $push: {
+            contentProgress: {
+              contentId,
+              completed: completed || false,
+              lastAccessed: new Date(),
+              timeSpent: 0,
+              interactions: 0
+            }
+          },
+          $set: { updatedAt: new Date() }
+        },
+        { 
+          new: true, 
+          upsert: true,
+          setDefaultsOnInsert: true
+        }
+      );
+
+      // If document was created, initialize it properly
+      if (!updateResult.moduleProgress || updateResult.moduleProgress.length === 0) {
+        updateResult = await Progress.findOneAndUpdate(
+          { userId },
+          {
+            $set: {
+              moduleProgress: [
+                { moduleId: 1, progress: 0 },
+                { moduleId: 2, progress: 0 },
+                { moduleId: 3, progress: 0 }
+              ]
+            }
+          },
+          { new: true }
+        );
+      }
+    }
+
+    // Get the updated content progress item
+    const contentProgress = updateResult.contentProgress.find(
+      item => item.contentId.toString() === contentId
+    );
+
+    // Recalculate module progress separately to avoid conflicts
+    setTimeout(() => {
+      recalculateModuleProgressAsync(userId, moduleId);
+    }, 100);
+
+    // Get current module progress
+    const moduleProgress = updateResult.moduleProgress.find(
+      item => item.moduleId === moduleId
+    );
+
+    return {
+      success: true,
+      contentProgress,
+      moduleProgress
+    };
+  } catch (error) {
+    console.error('Error in updateContentProgressAtomic:', error);
+    return { success: false };
+  }
+}
+
+// Async module progress recalculation (to avoid conflicts)
+async function recalculateModuleProgressAsync(userId, moduleId) {
+  try {
+    // Wait a bit to ensure other operations complete
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    const userProgress = await Progress.findOne({ userId });
+    if (!userProgress) return;
+
     // Get all content for this module
     const moduleContent = await Content.find({ moduleId });
     const moduleContentIds = moduleContent.map(item => item._id.toString());
@@ -258,21 +380,22 @@ async function recalculateModuleProgress(userProgress, moduleId) {
     
     const totalProgress = Math.round(contentProgress + quizProgress);
     
-    // Update module progress
-    const moduleProgressIndex = userProgress.moduleProgress.findIndex(
-      item => item.moduleId === moduleId
+    // Update module progress atomically
+    await Progress.updateOne(
+      { 
+        userId,
+        'moduleProgress.moduleId': moduleId 
+      },
+      {
+        $set: {
+          'moduleProgress.$.progress': totalProgress,
+          updatedAt: new Date()
+        }
+      }
     );
     
-    if (moduleProgressIndex > -1) {
-      userProgress.moduleProgress[moduleProgressIndex].progress = totalProgress;
-    } else {
-      userProgress.moduleProgress.push({
-        moduleId,
-        progress: totalProgress
-      });
-    }
+    console.log(`Module ${moduleId} progress updated to ${totalProgress}% for user ${userId}`);
   } catch (error) {
-    console.error('Recalculate module progress error:', error);
-    throw error;
+    console.error('Error recalculating module progress:', error);
   }
 }

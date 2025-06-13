@@ -4,7 +4,7 @@ const Progress = require('../models/Progress');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
-// JWT secret (move to environment variable in production)
+// JWT secret (move to env)
 const JWT_SECRET = 'mountathossecret';
 
 // Register user

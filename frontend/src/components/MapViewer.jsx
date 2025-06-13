@@ -6,9 +6,7 @@ const MapViewer = ({ locations, activeLocation, onSelectLocation }) => {
   const [mapLoaded, setMapLoaded] = useState(false);
   
   useEffect(() => {
-    // Initialize the map (this is a simple implementation)
-    // For a real-world app, you might want to use a library like Leaflet or Google Maps
-    
+    // Initialize the map (simple implementation)    
     if (!mapContainerRef.current) return;
     
     // Set background image of Mount Athos map
