@@ -1,6 +1,6 @@
-// frontend/src/components/AdaptiveContentViewer.jsx FIXED VERSION
+// frontend/src/components/AdaptiveContentViewer.jsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { behaviorTracker, trackUserBehavior } from '../services/adaptiveLearning'; // Import both
+import { behaviorTracker, trackUserBehavior } from '../services/adaptiveLearning';
 import { updateContentProgress } from '../services/api';
 
 const AdaptiveContentViewer = ({ content, onComplete, onNeedHelp }) => {
@@ -9,8 +9,11 @@ const AdaptiveContentViewer = ({ content, onComplete, onNeedHelp }) => {
   const [readingProgress, setReadingProgress] = useState(0);
   const [timeSpent, setTimeSpent] = useState(0);
   const [strugglingDetected, setStrugglingDetected] = useState(false);
+  const [mediaLoaded, setMediaLoaded] = useState(false);
+  const [mediaError, setMediaError] = useState(false);
   
   const contentRef = useRef(null);
+  const videoRef = useRef(null);
   const timeInterval = useRef(null);
   const scrollTimeout = useRef(null);
 
@@ -25,10 +28,10 @@ const AdaptiveContentViewer = ({ content, onComplete, onNeedHelp }) => {
         setTimeSpent(prev => prev + 1);
       }, 1000);
 
-      // Check for struggling after some time
+      // Check for struggling after some time (adjusted for content type)
       const struggleTimeout = setTimeout(() => {
         checkForStruggling();
-      }, 120000); // Check after 2 minutes
+      }, getStruggleCheckTime());
 
       return () => {
         if (timeInterval.current) {
@@ -42,8 +45,22 @@ const AdaptiveContentViewer = ({ content, onComplete, onNeedHelp }) => {
     }
   }, [content, isCompleted]);
 
-  // Scroll tracking
+  // Get struggle check time based on content type
+  const getStruggleCheckTime = () => {
+    if (!content) return 120000; // 2 minutes default
+    
+    switch (content.type) {
+      case 'text': return 120000; // 2 minutes for text
+      case 'image': return 60000;  // 1 minute for images
+      case 'video': return 180000; // 3 minutes for videos
+      default: return 120000;
+    }
+  };
+
+  // Scroll tracking for text content
   useEffect(() => {
+    if (content?.type !== 'text') return;
+
     const handleScroll = () => {
       if (contentRef.current) {
         const element = contentRef.current;
@@ -71,32 +88,88 @@ const AdaptiveContentViewer = ({ content, onComplete, onNeedHelp }) => {
       contentElement.addEventListener('scroll', handleScroll);
       return () => contentElement.removeEventListener('scroll', handleScroll);
     }
-  }, [readingProgress]);
+  }, [readingProgress, content]);
+
+  // Video progress tracking
+  useEffect(() => {
+    if (content?.type !== 'video' || !videoRef.current) return;
+
+    const video = videoRef.current;
+    
+    const handleVideoProgress = () => {
+      if (video.duration > 0) {
+        const progress = Math.round((video.currentTime / video.duration) * 100);
+        setReadingProgress(Math.max(readingProgress, progress));
+        behaviorTracker.trackInteraction();
+      }
+    };
+
+    const handleVideoEnded = () => {
+      setReadingProgress(100);
+      behaviorTracker.trackInteraction();
+    };
+
+    video.addEventListener('timeupdate', handleVideoProgress);
+    video.addEventListener('ended', handleVideoEnded);
+    video.addEventListener('play', () => behaviorTracker.trackInteraction());
+    video.addEventListener('pause', () => behaviorTracker.trackInteraction());
+
+    return () => {
+      video.removeEventListener('timeupdate', handleVideoProgress);
+      video.removeEventListener('ended', handleVideoEnded);
+      video.removeEventListener('play', () => behaviorTracker.trackInteraction());
+      video.removeEventListener('pause', () => behaviorTracker.trackInteraction());
+    };
+  }, [readingProgress, content, mediaLoaded]);
+
+  // Image viewing progress (time-based)
+  useEffect(() => {
+    if (content?.type !== 'image' || !mediaLoaded) return;
+
+    const progressInterval = setInterval(() => {
+      setReadingProgress(prev => {
+        // For images, progress based on time spent viewing
+        const newProgress = Math.min(prev + 5, 100); // 5% every second, max 100%
+        return newProgress;
+      });
+    }, 1000);
+
+    return () => clearInterval(progressInterval);
+  }, [content, mediaLoaded]);
 
   const checkForStruggling = useCallback(() => {
-    // Check indicators of struggling
+    // Adjust struggling indicators based on content type
     const indicators = [];
     
-    if (timeSpent > 300 && readingProgress < 30) { // 5 minutes, less than 30% read
-      indicators.push('slow_reading');
-    }
-    
-    if (timeSpent > 600 && !isCompleted) { // 10 minutes without completion
-      indicators.push('extended_time');
-    }
-    
-    if (readingProgress > 80 && timeSpent < 60) { // Fast scrolling through content
-      indicators.push('fast_scrolling');
+    if (content?.type === 'text') {
+      if (timeSpent > 300 && readingProgress < 30) {
+        indicators.push('slow_reading');
+      }
+      if (timeSpent > 600 && !isCompleted) {
+        indicators.push('extended_time');
+      }
+    } else if (content?.type === 'image') {
+      if (timeSpent > 120 && readingProgress < 50) { // 2 minutes for images
+        indicators.push('slow_viewing');
+      }
+      if (timeSpent < 30 && !isCompleted) {
+        indicators.push('too_quick');
+      }
+    } else if (content?.type === 'video') {
+      if (timeSpent > 300 && readingProgress < 20) {
+        indicators.push('not_watching');
+      }
+      if (videoRef.current && videoRef.current.paused && timeSpent > 60) {
+        indicators.push('video_paused_long');
+      }
     }
     
     if (indicators.length > 0) {
       setStrugglingDetected(true);
       setShowHelp(true);
-      
-      // Track struggling behavior using the class method
       behaviorTracker.analyzeStruggle(timeSpent, isCompleted);
     }
-  }, [timeSpent, readingProgress, isCompleted]);
+  }, [timeSpent, readingProgress, isCompleted, content]);
 
   const handleComplete = async () => {
     try {
@@ -108,8 +181,9 @@ const AdaptiveContentViewer = ({ content, onComplete, onNeedHelp }) => {
       // Track completion behavior
       behaviorTracker.stopTracking(true);
       
-      // Track deep engagement if applicable
-      if (timeSpent > 120 && readingProgress > 80) {
+      // Track deep engagement based on content type
+      const isDeepEngagement = getDeepEngagementStatus();
+      if (isDeepEngagement) {
         behaviorTracker.trackDeepEngagement();
       }
       
@@ -118,7 +192,8 @@ const AdaptiveContentViewer = ({ content, onComplete, onNeedHelp }) => {
           timeSpent,
           readingProgress,
           strugglingDetected,
-          deepEngagement: timeSpent > 120 && readingProgress > 80
+          deepEngagement: isDeepEngagement,
+          mediaType: content.type
         });
       }
     } catch (error) {
@@ -126,10 +201,23 @@ const AdaptiveContentViewer = ({ content, onComplete, onNeedHelp }) => {
     }
   };
 
+  const getDeepEngagementStatus = () => {
+    switch (content?.type) {
+      case 'text':
+        return timeSpent > 120 && readingProgress > 80;
+      case 'image':
+        return timeSpent > 60 && readingProgress > 70;
+      case 'video':
+        return timeSpent > 60 && readingProgress > 85;
+      default:
+        return false;
+    }
+  };
+
   const handleNeedHelp = () => {
     setShowHelp(true);
     
-    // Track help request using the standalone function - FIXED
+    // Track help request
     trackUserBehavior({
       contentId: content._id,
       timeSpent,
@@ -138,24 +226,54 @@ const AdaptiveContentViewer = ({ content, onComplete, onNeedHelp }) => {
       metadata: {
         reason: 'help_requested',
         readingProgress,
-        timeSpent
+        timeSpent,
+        contentType: content.type
       }
     });
     
-    // Also use the class method for help tracking
     behaviorTracker.trackHelpRequest('user_clicked_help_button');
     
     if (onNeedHelp) {
-      onNeedHelp(content, { timeSpent, readingProgress, strugglingDetected: true });
+      onNeedHelp(content, { 
+        timeSpent, 
+        readingProgress, 
+        strugglingDetected: true,
+        contentType: content.type
+      });
     }
   };
 
   const handleContentInteraction = (e) => {
     behaviorTracker.trackInteraction();
     
-    // Track specific interactions
     if (e.type === 'click') {
       behaviorTracker.trackClick();
+    }
+  };
+
+  const handleMediaLoad = () => {
+    setMediaLoaded(true);
+    setMediaError(false);
+    behaviorTracker.trackInteraction();
+    
+    // For images, start progress immediately
+    if (content?.type === 'image') {
+      setReadingProgress(10); // Start with 10% when image loads
+    }
+  };
+
+  const handleMediaError = () => {
+    setMediaError(true);
+    setMediaLoaded(false);
+    console.error('Media failed to load:', content.content);
+  };
+
+  const getCompletionThreshold = () => {
+    switch (content?.type) {
+      case 'text': return 70;
+      case 'image': return 60;
+      case 'video': return 80;
+      default: return 70;
     }
   };
 
@@ -166,8 +284,9 @@ const AdaptiveContentViewer = ({ content, onComplete, onNeedHelp }) => {
   };
 
   const getProgressColor = () => {
-    if (readingProgress >= 80) return 'success';
-    if (readingProgress >= 50) return 'warning';
+    const threshold = getCompletionThreshold();
+    if (readingProgress >= threshold) return 'success';
+    if (readingProgress >= threshold * 0.7) return 'warning';
     return 'danger';
   };
 
@@ -180,25 +299,198 @@ const AdaptiveContentViewer = ({ content, onComplete, onNeedHelp }) => {
     );
   };
 
+  const getContentTypeIcon = () => {
+    switch (content?.type) {
+      case 'text': return '📖';
+      case 'image': return '🖼️';
+      case 'video': return '🎬';
+      default: return '📄';
+    }
+  };
+
+  const renderHelpSuggestions = () => {
+    if (!strugglingDetected || !showHelp) return null;
+
+    const suggestions = {
+      text: [
+        { text: '📚 Show Summary', action: () => alert('Summary would be shown here') },
+        { text: '🎵 Audio Version', action: () => alert('Audio narration would play here') },
+        { text: '💬 Key Points', action: () => alert('Key points would be highlighted') }
+      ],
+      image: [
+        { text: '🔍 Zoom & Details', action: () => alert('Image zoom and details would be shown') },
+        { text: '📝 Description', action: () => alert('Detailed description would be provided') },
+        { text: '🎯 Focus Areas', action: () => alert('Important areas would be highlighted') }
+      ],
+      video: [
+        { text: '⏯️ Replay Key Parts', action: () => videoRef.current?.play() },
+        { text: '📝 Transcript', action: () => alert('Video transcript would be shown') },
+        { text: '⏩ Skip to Important', action: () => alert('Would skip to key moments') }
+      ]
+    };
+
+    const contentSuggestions = suggestions[content?.type] || suggestions.text;
+
+    return (
+      <div className="alert alert-warning alert-dismissible fade show" role="alert">
+        <strong>🤔 Having trouble with this {content?.type}?</strong> Here are some helpful options:
+        <div className="mt-2">
+          {contentSuggestions.map((suggestion, index) => (
+            <button 
+              key={index}
+              className="btn btn-sm btn-warning me-2 mb-1"
+              onClick={suggestion.action}
+            >
+              {suggestion.text}
+            </button>
+          ))}
+        </div>
+        <button 
+          type="button" 
+          className="btn-close" 
+          onClick={() => setShowHelp(false)}
+        ></button>
+      </div>
+    );
+  };
+
+  const renderContent = () => {
+    if (!content) return null;
+
+    switch (content.type) {
+      case 'text':
+        return (
+          <div 
+            ref={contentRef}
+            className="card-body text-content"
+            style={{ 
+              maxHeight: '600px', 
+              overflowY: 'auto',
+              lineHeight: '1.6',
+              fontSize: '1.1rem'
+            }}
+            onClick={handleContentInteraction}
+            onKeyDown={handleContentInteraction}
+          >
+            <div dangerouslySetInnerHTML={{ __html: content.content }} />
+          </div>
+        );
+
+      case 'image':
+        return (
+          <div className="card-body text-center image-content">
+            {mediaError ? (
+              <div className="alert alert-warning">
+                <h6>🖼️ Image Not Available</h6>
+                <p>Could not load: {content.content}</p>
+                <small className="text-muted">
+                  Please ensure the image file exists at: <code>{content.content}</code>
+                </small>
+              </div>
+            ) : (
+              <>
+                <img 
+                  src={content.content} 
+                  alt={content.title} 
+                  className="img-fluid rounded shadow"
+                  style={{ maxHeight: '500px', cursor: 'pointer' }}
+                  onLoad={handleMediaLoad}
+                  onError={handleMediaError}
+                  onClick={handleContentInteraction}
+                />
+                {mediaLoaded && (
+                  <div className="mt-3">
+                    <p className="text-muted">
+                      👁️ Take your time to examine the details in this image. 
+                      Click for larger view or use zoom controls.
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        );
+
+      case 'video':
+        return (
+          <div className="card-body video-content">
+            {mediaError ? (
+              <div className="alert alert-warning">
+                <h6>🎬 Video Not Available</h6>
+                <p>Could not load: {content.content}</p>
+                <small className="text-muted">
+                  Please ensure the video file exists at: <code>{content.content}</code>
+                </small>
+              </div>
+            ) : (
+              <>
+                <div className="ratio ratio-16x9">
+                  <video 
+                    ref={videoRef}
+                    controls 
+                    className="rounded"
+                    onLoadedData={handleMediaLoad}
+                    onError={handleMediaError}
+                    onClick={handleContentInteraction}
+                  >
+                    <source src={content.content} type="video/mp4" />
+                    Your browser does not support the video tag.
+                  </video>
+                </div>
+                {mediaLoaded && (
+                  <div className="mt-3 text-center">
+                    <p className="text-muted">
+                      🎬 Watch the complete video for full understanding. 
+                      Use controls to pause, rewind, or adjust volume as needed.
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        );
+
+      default:
+        return (
+          <div className="card-body">
+            <div className="alert alert-warning">
+              <h6>❓ Unsupported Content Type</h6>
+              <p>Content type "{content.type}" is not supported.</p>
+              <small>Supported types: text, image, video</small>
+            </div>
+          </div>
+        );
+    }
+  };
+
   if (!content) {
     return (
       <div className="alert alert-info">
-        <p>Select content from the sidebar to begin learning.</p>
+        <h6>📚 Ready to Learn</h6>
+        <p>Select content from the sidebar to begin your adaptive learning journey through Mount Athos.</p>
       </div>
     );
   }
 
+  const completionThreshold = getCompletionThreshold();
+
   return (
     <div className="adaptive-content-viewer">
-      {/* Progress Header */}
+      {/* Enhanced Progress Header */}
       <div className="card mb-3">
-        <div className="card-header d-flex justify-content-between align-items-center">
+        <div className="card-header d-flex justify-content-between align-items-center bg-light">
           <div>
-            <h5 className="mb-1">{content.title}</h5>
-            <div className="d-flex gap-2 align-items-center">
+            <h5 className="mb-1">
+              {getContentTypeIcon()} {content.title}
+            </h5>
+            <div className="d-flex gap-2 align-items-center flex-wrap">
               {getDifficultyBadge()}
+              <span className="badge bg-secondary">{content.type}</span>
               <small className="text-muted">⏱️ {formatTime(timeSpent)}</small>
               {isCompleted && <span className="badge bg-success">✅ Completed</span>}
+              {mediaLoaded && content.type !== 'text' && (
+                <span className="badge bg-info">📡 Loaded</span>
+              )}
             </div>
           </div>
           <div className="d-flex gap-2">
@@ -206,143 +498,122 @@ const AdaptiveContentViewer = ({ content, onComplete, onNeedHelp }) => {
               className="btn btn-outline-secondary btn-sm"
               onClick={handleNeedHelp}
               disabled={isCompleted}
+              title="Get help with this content"
             >
               🆘 Need Help
             </button>
             <button 
               className="btn btn-success btn-sm"
               onClick={handleComplete}
-              disabled={isCompleted || readingProgress < 70}
+              disabled={isCompleted || readingProgress < completionThreshold}
+              title={`Complete ${completionThreshold}% to finish`}
             >
               {isCompleted ? '✅ Completed' : '✓ Mark Complete'}
             </button>
           </div>
         </div>
         
-        {/* Reading Progress Bar */}
+        {/* Enhanced Progress Bar with Content Type Specifics */}
         <div className="card-body py-2">
           <div className="d-flex justify-content-between align-items-center mb-2">
-            <small>Reading Progress</small>
+            <small>
+              {content.type === 'text' && '📖 Reading Progress'}
+              {content.type === 'image' && '👁️ Viewing Progress'}
+              {content.type === 'video' && '🎬 Watch Progress'}
+            </small>
             <small>{readingProgress}%</small>
           </div>
-          <div className="progress" style={{ height: '6px' }}>
+          <div className="progress" style={{ height: '8px' }}>
             <div 
               className={`progress-bar bg-${getProgressColor()}`}
               style={{ width: `${readingProgress}%` }}
             ></div>
           </div>
-          {readingProgress < 70 && !isCompleted && (
+          {readingProgress < completionThreshold && !isCompleted && (
             <small className="text-muted">
-              💡 Complete at least 70% to mark as finished
+              💡 Complete at least {completionThreshold}% to mark as finished
+              {content.type === 'video' && ' (watch most of the video)'}
+              {content.type === 'image' && ' (spend enough time viewing)'}
+              {content.type === 'text' && ' (read through the content)'}
             </small>
           )}
         </div>
       </div>
 
-      {/* Struggling Detected Alert */}
-      {strugglingDetected && showHelp && (
-        <div className="alert alert-warning alert-dismissible fade show" role="alert">
-          <strong>🤔 Having trouble?</strong> We noticed you might need some help with this content.
-          <div className="mt-2">
-            <button className="btn btn-sm btn-warning me-2">📚 Show Summary</button>
-            <button className="btn btn-sm btn-outline-warning me-2">🎥 Watch Video</button>
-            <button className="btn btn-sm btn-outline-warning">💬 Get Explanation</button>
-          </div>
-          <button 
-            type="button" 
-            className="btn-close" 
-            onClick={() => setShowHelp(false)}
-          ></button>
-        </div>
-      )}
+      {/* Content-Type Specific Help */}
+      {renderHelpSuggestions()}
 
-      {/* Content Display */}
+      {/* Main Content Display */}
       <div className="card">
-        <div 
-          ref={contentRef}
-          className="card-body"
-          style={{ 
-            maxHeight: '600px', 
-            overflowY: 'auto',
-            lineHeight: '1.6'
-          }}
-          onClick={handleContentInteraction}
-          onKeyDown={handleContentInteraction}
-        >
-          {content.type === 'text' ? (
-            <div 
-              dangerouslySetInnerHTML={{ __html: content.content }}
-              style={{ fontSize: '1.1rem' }}
-            />
-          ) : content.type === 'image' ? (
-            <div className="text-center">
-              <img 
-                src={content.content} 
-                alt={content.title} 
-                className="img-fluid rounded shadow"
-                onLoad={handleContentInteraction}
-              />
-            </div>
-          ) : content.type === 'video' ? (
-            <div className="ratio ratio-16x9">
-              <iframe 
-                src={content.content} 
-                title={content.title} 
-                allowFullScreen
-                onLoad={handleContentInteraction}
-              ></iframe>
-            </div>
-          ) : (
-            <div className="alert alert-warning">
-              Unsupported content type: {content.type}
-            </div>
-          )}
-        </div>
+        {renderContent()}
       </div>
 
-      {/* Adaptive Metadata Display */}
+      {/* Enhanced Adaptive Metadata Display */}
       {content.adaptiveMetadata && (
         <div className="card mt-3">
           <div className="card-header">
-            <h6 className="mb-0">🎯 Why This Content?</h6>
+            <h6 className="mb-0">🎯 Why This {content.type.charAt(0).toUpperCase() + content.type.slice(1)}?</h6>
           </div>
           <div className="card-body">
             {content.adaptiveMetadata.recommended && (
               <div className="alert alert-info mb-2">
-                <strong>Recommended for you:</strong> {content.adaptiveMetadata.reason}
+                <strong>📍 Recommended for you:</strong> {content.adaptiveMetadata.reason}
               </div>
             )}
             
-            <div className="d-flex justify-content-between align-items-center">
-              <small className="text-muted">
-                Priority: <span className={`badge bg-${
-                  content.adaptiveMetadata.priority === 'high' ? 'danger' :
-                  content.adaptiveMetadata.priority === 'medium' ? 'warning' : 'secondary'
-                }`}>
-                  {content.adaptiveMetadata.priority}
-                </span>
-              </small>
-              
-              {timeSpent > 0 && (
+            <div className="row">
+              <div className="col-md-6">
                 <small className="text-muted">
-                  Engagement Score: {Math.round((readingProgress + (timeSpent > 60 ? 50 : 0)) / 1.5)}%
+                  Priority: <span className={`badge bg-${
+                    content.adaptiveMetadata.priority === 'high' ? 'danger' :
+                    content.adaptiveMetadata.priority === 'medium' ? 'warning' : 'secondary'
+                  }`}>
+                    {content.adaptiveMetadata.priority}
+                  </span>
                 </small>
-              )}
+              </div>
+              <div className="col-md-6 text-end">
+                {timeSpent > 0 && (
+                  <small className="text-muted">
+                    Engagement: {Math.round((readingProgress + (timeSpent > 60 ? 50 : 0)) / 1.5)}%
+                  </small>
+                )}
+              </div>
             </div>
           </div>
         </div>
       )}
       
-      {/* Performance Tips */}
-      {timeSpent > 180 && readingProgress < 50 && (
+      {/* Content-Type Specific Learning Tips */}
+      {timeSpent > 60 && readingProgress < 50 && (
         <div className="card mt-3 border-warning">
           <div className="card-body">
-            <h6 className="text-warning">💡 Learning Tips</h6>
+            <h6 className="text-warning">💡 {content.type.charAt(0).toUpperCase() + content.type.slice(1)} Learning Tips</h6>
             <ul className="mb-0 small">
-              <li>Try reading each section carefully before moving on</li>
-              <li>Take notes of key concepts</li>
-              <li>Don't hesitate to re-read difficult parts</li>
-              <li>Use the "Need Help" button if you're stuck</li>
+              {content.type === 'text' && (
+                <>
+                  <li>Read each section carefully before moving on</li>
+                  <li>Take notes of key concepts and dates</li>
+                  <li>Don't hesitate to re-read difficult parts</li>
+                  <li>Look for connections between ideas</li>
+                </>
+              )}
+              {content.type === 'image' && (
+                <>
+                  <li>Examine all details in the image carefully</li>
+                  <li>Look for architectural features, symbols, or people</li>
+                  <li>Consider the historical context of what you see</li>
+                  <li>Try to identify different elements and their significance</li>
+                </>
+              )}
+              {content.type === 'video' && (
+                <>
+                  <li>Watch the complete video without distractions</li>
+                  <li>Use pause and rewind to review important sections</li>
+                  <li>Pay attention to both visual and audio information</li>
+                  <li>Take mental notes of key points and scenes</li>
+                </>
+              )}
             </ul>
           </div>
         </div>

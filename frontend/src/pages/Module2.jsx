@@ -6,7 +6,6 @@ import Progress from '../components/Progress';
 import Quiz from '../components/Quiz';
 import AdaptiveRecommendations from '../components/AdaptiveRecommendations';
 import AdaptiveContentViewer from '../components/AdaptiveContentViewer';
-import MapViewer from '../components/MapViewer';
 
 const Module2 = ({ user }) => {
   const [content, setContent] = useState([]);
@@ -19,21 +18,7 @@ const Module2 = ({ user }) => {
   const [error, setError] = useState(null);
   const [useAdaptive, setUseAdaptive] = useState(true);
   const [showRecommendations, setShowRecommendations] = useState(true);
-  const [showMap, setShowMap] = useState(false);
-  
-  // Sample monastery locations for the interactive map
-  const [monasteryLocations] = useState([
-    { id: 1, name: 'Great Lavra', x: 30, y: 80, description: 'Founded 963 AD by St. Athanasius the Athonite. First monastery and highest in hierarchy.' },
-    { id: 2, name: 'Vatopedi', x: 45, y: 35, description: 'Founded 972 AD. Houses the Belt of the Virgin Mary and extensive library.' },
-    { id: 3, name: 'Iviron', x: 60, y: 40, description: 'Founded 976 AD by Georgian monks. Famous for Panagia Portaitissa icon.' },
-    { id: 4, name: 'Hilandar', x: 25, y: 50, description: 'Founded 1198 AD by Serbian saints. Serbian Orthodox spiritual center.' },
-    { id: 5, name: 'Dionysiou', x: 15, y: 60, description: 'Founded 1375 AD. Dramatically perched on cliff above the sea.' },
-    { id: 6, name: 'St. Panteleimon', x: 70, y: 25, description: 'Russian monastery with distinctive green domes. Re-established 19th century.' },
-    { id: 7, name: 'Simonopetra', x: 20, y: 65, description: 'Founded ca. 1360 AD. Famous for buildings growing from granite rock.' },
-    { id: 8, name: 'Zografou', x: 35, y: 45, description: 'Bulgarian monastery founded 10th century. Dedicated to St. George.' }
-  ]);
-  
-  const [activeLocation, setActiveLocation] = useState(null);
+  const [contentFilter, setContentFilter] = useState('all'); // all, text, image, video
 
   // Module ID for this page
   const moduleId = 2;
@@ -93,7 +78,6 @@ const Module2 = ({ user }) => {
   const handleContentSelect = (contentItem) => {
     setActiveContent(contentItem);
     setActiveQuiz(null);
-    setShowMap(false);
     
     if (!useAdaptive) {
       updateContentProgress(contentItem._id, false).catch(err => {
@@ -105,13 +89,6 @@ const Module2 = ({ user }) => {
   const handleQuizSelect = (quiz) => {
     setActiveQuiz(quiz);
     setActiveContent(null);
-    setShowMap(false);
-  };
-  
-  const handleShowMap = () => {
-    setShowMap(true);
-    setActiveContent(null);
-    setActiveQuiz(null);
   };
 
   const handleQuizComplete = (results) => {
@@ -136,7 +113,15 @@ const Module2 = ({ user }) => {
 
   const handleNeedHelp = (content, metrics) => {
     console.log('User needs help with:', content.title, 'Metrics:', metrics);
-    alert(`📚 Help for "${content.title}": Consider reviewing the monastery hierarchy and architectural terms. Check the interactive map to visualize monastery locations!`);
+    
+    const helpMessages = {
+      text: `📚 For "${content.title}": Focus on the hierarchy of the 20 monasteries and their unique characteristics. Remember Great Lavra is first, followed by Vatopedi, Iviron, and Hilandar. Each has distinct national and architectural features.`,
+      image: `🖼️ For "${content.title}": Examine the architectural details carefully. Look for fortress-like walls, Byzantine domes, wooden balconies, and courtyards. Notice how monasteries adapt to dramatic cliff and rock locations.`,
+      video: `🎬 For "${content.title}": Watch for both architectural features and daily monastic life. Pay attention to the international character of the monasteries and their unique building styles adapted to Mount Athos terrain.`
+    };
+    
+    const message = helpMessages[content.type] || helpMessages.text;
+    alert(message);
   };
 
   const handleRecommendationSelect = (recommendedContent) => {
@@ -158,30 +143,59 @@ const Module2 = ({ user }) => {
       handleQuizSelect(fullQuiz);
     }
   };
-  
-  const handleLocationSelect = (location) => {
-    setActiveLocation(location);
+
+  // Get display content with filtering
+  const getDisplayContent = () => {
+    const sourceContent = useAdaptive && adaptiveContent.length > 0 ? adaptiveContent : content;
     
-    // Find content related to this location if available
-    const displayContentArray = useAdaptive && adaptiveContent.length > 0 ? adaptiveContent : content;
-    const relatedContent = displayContentArray.find(item => 
-      item.title.toLowerCase().includes(location.name.toLowerCase())
-    );
+    if (contentFilter === 'all') {
+      return sourceContent;
+    }
+    return sourceContent.filter(item => item.type === contentFilter);
+  };
+
+  // Apply user preference filtering
+  const getFilteredContent = () => {
+    const displayContent = getDisplayContent();
     
-    if (relatedContent) {
-      handleContentSelect(relatedContent);
+    if (!user?.preferences?.learningStyle) {
+      return displayContent;
+    }
+
+    if (user.preferences.learningStyle === 'visual') {
+      const visualContent = displayContent.filter(c => c.type !== 'text');
+      const textContent = displayContent.filter(c => c.type === 'text');
+      return [...visualContent, ...textContent];
+    } else {
+      const textContent = displayContent.filter(c => c.type === 'text');
+      const visualContent = displayContent.filter(c => c.type !== 'text');
+      return [...textContent, ...visualContent];
+    }
+  };
+
+  const getContentTypeIcon = (type) => {
+    switch (type) {
+      case 'text': return '📖';
+      case 'image': return '🖼️';
+      case 'video': return '🎬';
+      default: return '📄';
+    }
+  };
+
+  const getContentTypeColor = (type) => {
+    switch (type) {
+      case 'text': return 'primary';
+      case 'image': return 'success';
+      case 'video': return 'danger';
+      default: return 'secondary';
     }
   };
 
   if (loading) return <div className="text-center my-4">Loading module data...</div>;
   if (error) return <div className="alert alert-danger">{error}</div>;
 
-  const displayContent = useAdaptive && adaptiveContent.length > 0 ? adaptiveContent : content;
   const displayQuizzes = useAdaptive && adaptiveQuizzes.length > 0 ? adaptiveQuizzes : quizzes;
-
-  const filteredContent = user?.preferences?.learningStyle === 'visual'
-    ? displayContent.filter(c => c.type !== 'text').concat(displayContent.filter(c => c.type === 'text'))
-    : displayContent.filter(c => c.type === 'text').concat(displayContent.filter(c => c.type !== 'text'));
+  const filteredContent = getFilteredContent();
 
   return (
     <div className="module-container">
@@ -190,31 +204,60 @@ const Module2 = ({ user }) => {
           {/* Module Header with Adaptive Toggle */}
           <div className="card mb-3">
             <div className="card-header bg-success text-white">
-              <h5 className="mb-1">Module 2: Monasteries & Architecture</h5>
-              <div className="form-check form-switch">
-                <input 
-                  className="form-check-input" 
-                  type="checkbox" 
-                  id="adaptiveToggle"
-                  checked={useAdaptive}
-                  onChange={(e) => setUseAdaptive(e.target.checked)}
-                />
-                <label className="form-check-label small" htmlFor="adaptiveToggle">
-                  🎯 Adaptive Learning {useAdaptive && adaptiveContent.length > 0 ? '(Active)' : '(Fallback)'}
-                </label>
+              <h5 className="mb-1">🏛️ Module 2: Monasteries & Architecture</h5>
+              <div className="d-flex flex-wrap gap-2 mt-2">
+                <div className="form-check form-switch">
+                  <input 
+                    className="form-check-input" 
+                    type="checkbox" 
+                    id="adaptiveToggle"
+                    checked={useAdaptive}
+                    onChange={(e) => setUseAdaptive(e.target.checked)}
+                  />
+                  <label className="form-check-label small" htmlFor="adaptiveToggle">
+                    🎯 Adaptive {useAdaptive && adaptiveContent.length > 0 ? '(Active)' : '(Fallback)'}
+                  </label>
+                </div>
               </div>
+              {user?.preferences?.learningStyle && (
+                <small className="d-block mt-1">
+                  👤 Learning Style: {user.preferences.learningStyle === 'visual' ? '👁️ Visual' : '📖 Textual'}
+                </small>
+              )}
             </div>
           </div>
 
-          {/* Interactive Map Button */}
+          {/* Content Type Filter */}
           <div className="card mb-3">
+            <div className="card-header bg-light">
+              <h6 className="mb-0">🎨 Content Filter</h6>
+            </div>
             <div className="card-body py-2">
-              <button 
-                className={`btn btn-info w-100 ${showMap ? 'active' : ''}`}
-                onClick={handleShowMap}
-              >
-                🗺️ Interactive Monastery Map
-              </button>
+              <div className="btn-group-vertical w-100" role="group">
+                <input type="radio" className="btn-check" name="contentFilter" id="filter-all" 
+                       checked={contentFilter === 'all'} onChange={() => setContentFilter('all')} />
+                <label className="btn btn-outline-secondary btn-sm" htmlFor="filter-all">
+                  📚 All Content ({filteredContent.length})
+                </label>
+                
+                <input type="radio" className="btn-check" name="contentFilter" id="filter-text" 
+                       checked={contentFilter === 'text'} onChange={() => setContentFilter('text')} />
+                <label className="btn btn-outline-primary btn-sm" htmlFor="filter-text">
+                  📖 Text ({content.filter(c => c.type === 'text').length})
+                </label>
+                
+                <input type="radio" className="btn-check" name="contentFilter" id="filter-image" 
+                       checked={contentFilter === 'image'} onChange={() => setContentFilter('image')} />
+                <label className="btn btn-outline-success btn-sm" htmlFor="filter-image">
+                  🖼️ Images ({content.filter(c => c.type === 'image').length})
+                </label>
+                
+                <input type="radio" className="btn-check" name="contentFilter" id="filter-video" 
+                       checked={contentFilter === 'video'} onChange={() => setContentFilter('video')} />
+                <label className="btn btn-outline-danger btn-sm" htmlFor="filter-video">
+                  🎬 Videos ({content.filter(c => c.type === 'video').length})
+                </label>
+              </div>
             </div>
           </div>
 
@@ -223,10 +266,15 @@ const Module2 = ({ user }) => {
             <div className="card-body p-0">
               <ul className="list-group list-group-flush">
                 <li className="list-group-item bg-light fw-bold d-flex justify-content-between">
-                  Content
-                  {useAdaptive && adaptiveContent.length > 0 && (
-                    <span className="badge bg-success">Smart</span>
-                  )}
+                  📚 Content
+                  <div>
+                    {useAdaptive && adaptiveContent.length > 0 && (
+                      <span className="badge bg-success">Smart</span>
+                    )}
+                    {user?.preferences?.learningStyle === 'visual' && (
+                      <span className="badge bg-success ms-1">👁️</span>
+                    )}
+                  </div>
                 </li>
                 {filteredContent.map(item => (
                   <li 
@@ -235,18 +283,29 @@ const Module2 = ({ user }) => {
                     onClick={() => handleContentSelect(item)}
                     style={{cursor: 'pointer'}}
                   >
-                    <div className="d-flex justify-content-between align-items-center">
-                      <span>{item.title}</span>
-                      <div>
-                        {item.difficulty === 'advanced' && 
-                          <span className="badge bg-warning ms-1">Advanced</span>
-                        }
-                        {item.adaptiveMetadata?.recommended && 
-                          <span className="badge bg-success ms-1">⭐</span>
-                        }
-                        {item.adaptiveMetadata?.priority === 'high' && 
-                          <span className="badge bg-danger ms-1">!</span>
-                        }
+                    <div className="d-flex justify-content-between align-items-start">
+                      <div className="flex-grow-1">
+                        <div className="d-flex align-items-center mb-1">
+                          <span className="me-2">{getContentTypeIcon(item.type)}</span>
+                          <span className="small fw-medium">{item.title}</span>
+                        </div>
+                        <div className="d-flex gap-1 flex-wrap">
+                          <span className={`badge bg-${getContentTypeColor(item.type)} badge-sm`}>
+                            {item.type}
+                          </span>
+                          {item.difficulty === 'advanced' && 
+                            <span className="badge bg-warning badge-sm">Advanced</span>
+                          }
+                          {item.adaptiveMetadata?.recommended && 
+                            <span className="badge bg-success badge-sm">⭐</span>
+                          }
+                          {item.adaptiveMetadata?.priority === 'high' && 
+                            <span className="badge bg-danger badge-sm">!</span>
+                          }
+                          {item.adaptiveMetadata?.visualLearnerBoost && 
+                            <span className="badge bg-info badge-sm">👁️</span>
+                          }
+                        </div>
                       </div>
                     </div>
                     {item.adaptiveMetadata?.reason && (
@@ -258,7 +317,7 @@ const Module2 = ({ user }) => {
                 ))}
                 
                 <li className="list-group-item bg-light fw-bold d-flex justify-content-between">
-                  Quizzes
+                  🧠 Quizzes
                   {useAdaptive && adaptiveQuizzes.length > 0 && (
                     <span className="badge bg-success">Smart</span>
                   )}
@@ -315,6 +374,21 @@ const Module2 = ({ user }) => {
             </div>
           )}
 
+          {/* Learning Style Info */}
+          {user?.preferences?.learningStyle && (
+            <div className="card mb-3">
+              <div className="card-body py-2">
+                <h6 className="small mb-1">🎯 Your Learning Style</h6>
+                <p className="small mb-0">
+                  {user.preferences.learningStyle === 'visual' 
+                    ? '👁️ Visual: You learn best with images, videos, and visual content. They appear first in your content list.'
+                    : '📖 Textual: You learn best with text-based content. Written materials appear first in your content list.'
+                  }
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* User progress */}
           <Progress />
         </div>
@@ -328,49 +402,13 @@ const Module2 = ({ user }) => {
             />
           )}
 
-          {/* Interactive Map */}
-          {showMap && (
-            <MapViewer 
-              locations={monasteryLocations}
-              activeLocation={activeLocation}
-              onSelectLocation={handleLocationSelect}
-            />
-          )}
-
           {/* Content display area */}
           {activeContent && (
-            useAdaptive ? (
-              <AdaptiveContentViewer
-                content={activeContent}
-                onComplete={handleContentComplete}
-                onNeedHelp={handleNeedHelp}
-              />
-            ) : (
-              <div className="card">
-                <div className="card-header">
-                  <h5>{activeContent.title}</h5>
-                </div>
-                <div className="card-body">
-                  {activeContent.type === 'text' ? (
-                    <div dangerouslySetInnerHTML={{ __html: activeContent.content }} />
-                  ) : activeContent.type === 'image' ? (
-                    <img 
-                      src={activeContent.content} 
-                      alt={activeContent.title} 
-                      className="img-fluid" 
-                    />
-                  ) : (
-                    <div className="ratio ratio-16x9">
-                      <iframe 
-                        src={activeContent.content} 
-                        title={activeContent.title} 
-                        allowFullScreen
-                      ></iframe>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )
+            <AdaptiveContentViewer
+              content={activeContent}
+              onComplete={handleContentComplete}
+              onNeedHelp={handleNeedHelp}
+            />
           )}
           
           {/* Quiz display area */}
@@ -382,27 +420,106 @@ const Module2 = ({ user }) => {
           )}
           
           {/* Default view when nothing is selected */}
-          {!activeContent && !activeQuiz && !showMap && (
-            <div className="alert alert-info">
-              <h4>Welcome to Module 2: Monasteries & Architecture</h4>
-              <p>
-                {useAdaptive && adaptiveContent.length > 0
-                  ? '🏛️ Explore the 20 sacred monasteries of Mount Athos with personalized adaptive learning! Use the interactive map to visualize monastery locations.' 
-                  : 'Discover the architectural marvels and spiritual centers of the Holy Mountain. Select content or try the interactive map!'
-                }
-              </p>
-              
-              {useAdaptive && adaptiveContent.length > 0 && (
-                <div className="mt-3">
-                  <h6>🌟 Smart Features Active:</h6>
-                  <ul className="mb-0">
-                    <li>🗺️ Interactive monastery map with locations</li>
-                    <li>🏛️ Architecture-focused adaptive content</li>
-                    <li>📊 Performance-based monastery recommendations</li>
-                    <li>🎯 Personalized learning about monastic life</li>
-                  </ul>
+          {!activeContent && !activeQuiz && (
+            <div className="card">
+              <div className="card-header bg-success text-white">
+                <h4 className="mb-0">🏛️ Welcome to Module 2: Monasteries & Architecture</h4>
+              </div>
+              <div className="card-body">
+                <div className="row">
+                  <div className="col-md-8">
+                    <p className="lead">
+                      Explore the 20 sacred monasteries of Mount Athos and their remarkable Byzantine architecture.
+                    </p>
+                    
+                    {useAdaptive && adaptiveContent.length > 0 ? (
+                      <div className="alert alert-info">
+                        <h6>🎯 Adaptive Learning Active!</h6>
+                        <p className="mb-2">Content is personalized for monastery and architecture learning:</p>
+                        <ul className="mb-0">
+                          <li>🏛️ Architecture-focused adaptive content</li>
+                          <li>📊 Performance-based monastery recommendations</li>
+                          <li>🎯 Personalized learning about monastic life</li>
+                          {user?.preferences?.learningStyle === 'visual' && (
+                            <li>👁️ Visual architectural content prioritized</li>
+                          )}
+                          {user?.preferences?.learningStyle === 'textual' && (
+                            <li>📖 Detailed monastery descriptions prioritized</li>
+                          )}
+                        </ul>
+                      </div>
+                    ) : (
+                      <div className="alert alert-warning">
+                        <h6>📚 Standard Learning Mode</h6>
+                        <p className="mb-0">Enable adaptive learning for a personalized monastery exploration experience.</p>
+                      </div>
+                    )}
+
+                    <h6 className="mt-3">🏛️ What You'll Learn:</h6>
+                    <div className="row">
+                      <div className="col-sm-6">
+                        <ul>
+                          <li>🏰 The 20 ruling monasteries hierarchy</li>
+                          <li>🌍 International Orthodox communities</li>
+                          <li>🏗️ Byzantine fortress architecture</li>
+                        </ul>
+                      </div>
+                      <div className="col-sm-6">
+                        <ul>
+                          <li>⛪ Sacred katholikon churches</li>
+                          <li>🎨 Iconostasis and religious art</li>
+                          <li>🏘️ Monastic living arrangements</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-4">
+                    <div className="card bg-light">
+                      <div className="card-body text-center">
+                        <h6>📊 Content Overview</h6>
+                        <div className="row">
+                          <div className="col-4">
+                            <div className="text-primary">
+                              <strong>{content.filter(c => c.type === 'text').length}</strong>
+                              <br /><small>📖 Texts</small>
+                            </div>
+                          </div>
+                          <div className="col-4">
+                            <div className="text-success">
+                              <strong>{content.filter(c => c.type === 'image').length}</strong>
+                              <br /><small>🖼️ Images</small>
+                            </div>
+                          </div>
+                          <div className="col-4">
+                            <div className="text-danger">
+                              <strong>{content.filter(c => c.type === 'video').length}</strong>
+                              <br /><small>🎬 Videos</small>
+                            </div>
+                          </div>
+                        </div>
+                        <hr />
+                        <div className="text-warning">
+                          <strong>{quizzes.length}</strong><br />
+                          <small>🧠 Quizzes</small>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-3 text-center">
+                      <button 
+                        className="btn btn-success btn-lg"
+                        onClick={() => {
+                          const firstContent = filteredContent[0];
+                          if (firstContent) handleContentSelect(firstContent);
+                        }}
+                        disabled={filteredContent.length === 0}
+                      >
+                        🚀 Start Exploring
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              )}
+              </div>
             </div>
           )}
         </div>
