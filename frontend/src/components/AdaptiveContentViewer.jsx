@@ -20,15 +20,12 @@ const AdaptiveContentViewer = ({ content, onComplete, onNeedHelp }) => {
   // Timer for tracking time spent
   useEffect(() => {
     if (content) {
-      // Start behavior tracking
       behaviorTracker.startTracking(content._id, content.difficulty);
       
-      // Start time tracking
       timeInterval.current = setInterval(() => {
         setTimeSpent(prev => prev + 1);
       }, 1000);
 
-      // Check for struggling after some time (adjusted for content type)
       const struggleTimeout = setTimeout(() => {
         checkForStruggling();
       }, getStruggleCheckTime());
@@ -38,21 +35,18 @@ const AdaptiveContentViewer = ({ content, onComplete, onNeedHelp }) => {
           clearInterval(timeInterval.current);
         }
         clearTimeout(struggleTimeout);
-        
-        // Stop behavior tracking
         behaviorTracker.stopTracking(isCompleted, isCompleted ? null : 'navigation');
       };
     }
   }, [content, isCompleted]);
 
-  // Get struggle check time based on content type
   const getStruggleCheckTime = () => {
-    if (!content) return 120000; // 2 minutes default
+    if (!content) return 120000;
     
     switch (content.type) {
-      case 'text': return 120000; // 2 minutes for text
-      case 'image': return 60000;  // 1 minute for images
-      case 'video': return 180000; // 3 minutes for videos
+      case 'text': return 120000;
+      case 'image': return 60000;
+      case 'video': return 180000;
       default: return 120000;
     }
   };
@@ -72,7 +66,6 @@ const AdaptiveContentViewer = ({ content, onComplete, onNeedHelp }) => {
           const progress = Math.round((scrollTop / (scrollHeight - clientHeight)) * 100);
           setReadingProgress(Math.max(readingProgress, progress));
           
-          // Debounced behavior tracking
           if (scrollTimeout.current) {
             clearTimeout(scrollTimeout.current);
           }
@@ -122,14 +115,13 @@ const AdaptiveContentViewer = ({ content, onComplete, onNeedHelp }) => {
     };
   }, [readingProgress, content, mediaLoaded]);
 
-  // Image viewing progress (time-based)
+  // Image viewing progress
   useEffect(() => {
     if (content?.type !== 'image' || !mediaLoaded) return;
 
     const progressInterval = setInterval(() => {
       setReadingProgress(prev => {
-        // For images, progress based on time spent viewing
-        const newProgress = Math.min(prev + 5, 100); // 5% every second, max 100%
+        const newProgress = Math.min(prev + 5, 100);
         return newProgress;
       });
     }, 1000);
@@ -138,7 +130,6 @@ const AdaptiveContentViewer = ({ content, onComplete, onNeedHelp }) => {
   }, [content, mediaLoaded]);
 
   const checkForStruggling = useCallback(() => {
-    // Adjust struggling indicators based on content type
     const indicators = [];
     
     if (content?.type === 'text') {
@@ -149,7 +140,7 @@ const AdaptiveContentViewer = ({ content, onComplete, onNeedHelp }) => {
         indicators.push('extended_time');
       }
     } else if (content?.type === 'image') {
-      if (timeSpent > 120 && readingProgress < 50) { // 2 minutes for images
+      if (timeSpent > 120 && readingProgress < 50) {
         indicators.push('slow_viewing');
       }
       if (timeSpent < 30 && !isCompleted) {
@@ -175,13 +166,9 @@ const AdaptiveContentViewer = ({ content, onComplete, onNeedHelp }) => {
     try {
       setIsCompleted(true);
       
-      // Update progress in backend
       await updateContentProgress(content._id, true);
-      
-      // Track completion behavior
       behaviorTracker.stopTracking(true);
       
-      // Track deep engagement based on content type
       const isDeepEngagement = getDeepEngagementStatus();
       if (isDeepEngagement) {
         behaviorTracker.trackDeepEngagement();
@@ -217,7 +204,6 @@ const AdaptiveContentViewer = ({ content, onComplete, onNeedHelp }) => {
   const handleNeedHelp = () => {
     setShowHelp(true);
     
-    // Track help request
     trackUserBehavior({
       contentId: content._id,
       timeSpent,
@@ -256,9 +242,8 @@ const AdaptiveContentViewer = ({ content, onComplete, onNeedHelp }) => {
     setMediaError(false);
     behaviorTracker.trackInteraction();
     
-    // For images, start progress immediately
     if (content?.type === 'image') {
-      setReadingProgress(10); // Start with 10% when image loads
+      setReadingProgress(10);
     }
   };
 
@@ -293,18 +278,18 @@ const AdaptiveContentViewer = ({ content, onComplete, onNeedHelp }) => {
   const getDifficultyBadge = () => {
     const difficulty = content?.difficulty || 'basic';
     return (
-      <span className={`badge ${difficulty === 'advanced' ? 'bg-danger' : 'bg-primary'}`}>
-        {difficulty === 'advanced' ? '🔥 Advanced' : '📚 Basic'}
+      <span className={`badge ${difficulty === 'advanced' ? 'bg-warning' : 'bg-secondary'}`}>
+        {difficulty === 'advanced' ? 'Advanced' : 'Basic'}
       </span>
     );
   };
 
   const getContentTypeIcon = () => {
     switch (content?.type) {
-      case 'text': return '📖';
-      case 'image': return '🖼️';
-      case 'video': return '🎬';
-      default: return '📄';
+      case 'text': return '◈';
+      case 'image': return '◊';
+      case 'video': return '◆';
+      default: return '○';
     }
   };
 
@@ -313,19 +298,19 @@ const AdaptiveContentViewer = ({ content, onComplete, onNeedHelp }) => {
 
     const suggestions = {
       text: [
-        { text: '📚 Show Summary', action: () => alert('Summary would be shown here') },
-        { text: '🎵 Audio Version', action: () => alert('Audio narration would play here') },
-        { text: '💬 Key Points', action: () => alert('Key points would be highlighted') }
+        { text: 'Show Summary', action: () => alert('Summary would be shown here') },
+        { text: 'Audio Version', action: () => alert('Audio narration would play here') },
+        { text: 'Key Points', action: () => alert('Key points would be highlighted') }
       ],
       image: [
-        { text: '🔍 Zoom & Details', action: () => alert('Image zoom and details would be shown') },
-        { text: '📝 Description', action: () => alert('Detailed description would be provided') },
-        { text: '🎯 Focus Areas', action: () => alert('Important areas would be highlighted') }
+        { text: 'Zoom & Details', action: () => alert('Image zoom and details would be shown') },
+        { text: 'Description', action: () => alert('Detailed description would be provided') },
+        { text: 'Focus Areas', action: () => alert('Important areas would be highlighted') }
       ],
       video: [
-        { text: '⏯️ Replay Key Parts', action: () => videoRef.current?.play() },
-        { text: '📝 Transcript', action: () => alert('Video transcript would be shown') },
-        { text: '⏩ Skip to Important', action: () => alert('Would skip to key moments') }
+        { text: 'Replay Key Parts', action: () => videoRef.current?.play() },
+        { text: 'Transcript', action: () => alert('Video transcript would be shown') },
+        { text: 'Skip to Important', action: () => alert('Would skip to key moments') }
       ]
     };
 
@@ -333,7 +318,10 @@ const AdaptiveContentViewer = ({ content, onComplete, onNeedHelp }) => {
 
     return (
       <div className="alert alert-warning alert-dismissible fade show" role="alert">
-        <strong>🤔 Having trouble with this {content?.type}?</strong> Here are some helpful options:
+        <strong>
+          <span className="icon me-2">?</span>
+          Having trouble with this {content?.type}?
+        </strong> Here are some helpful options:
         <div className="mt-2">
           {contentSuggestions.map((suggestion, index) => (
             <button 
@@ -381,7 +369,10 @@ const AdaptiveContentViewer = ({ content, onComplete, onNeedHelp }) => {
           <div className="card-body text-center image-content">
             {mediaError ? (
               <div className="alert alert-warning">
-                <h6>🖼️ Image Not Available</h6>
+                <h6>
+                  <span className="icon me-2">!</span>
+                  Image Not Available
+                </h6>
                 <p>Could not load: {content.content}</p>
                 <small className="text-muted">
                   Please ensure the image file exists at: <code>{content.content}</code>
@@ -401,7 +392,8 @@ const AdaptiveContentViewer = ({ content, onComplete, onNeedHelp }) => {
                 {mediaLoaded && (
                   <div className="mt-3">
                     <p className="text-muted">
-                      👁️ Take your time to examine the details in this image. 
+                      <span className="icon me-2">◊</span>
+                      Take your time to examine the details in this image. 
                       Click for larger view or use zoom controls.
                     </p>
                   </div>
@@ -416,7 +408,10 @@ const AdaptiveContentViewer = ({ content, onComplete, onNeedHelp }) => {
           <div className="card-body video-content">
             {mediaError ? (
               <div className="alert alert-warning">
-                <h6>🎬 Video Not Available</h6>
+                <h6>
+                  <span className="icon me-2">!</span>
+                  Video Not Available
+                </h6>
                 <p>Could not load: {content.content}</p>
                 <small className="text-muted">
                   Please ensure the video file exists at: <code>{content.content}</code>
@@ -440,7 +435,8 @@ const AdaptiveContentViewer = ({ content, onComplete, onNeedHelp }) => {
                 {mediaLoaded && (
                   <div className="mt-3 text-center">
                     <p className="text-muted">
-                      🎬 Watch the complete video for full understanding. 
+                      <span className="icon me-2">◆</span>
+                      Watch the complete video for full understanding. 
                       Use controls to pause, rewind, or adjust volume as needed.
                     </p>
                   </div>
@@ -454,7 +450,10 @@ const AdaptiveContentViewer = ({ content, onComplete, onNeedHelp }) => {
         return (
           <div className="card-body">
             <div className="alert alert-warning">
-              <h6>❓ Unsupported Content Type</h6>
+              <h6>
+                <span className="icon me-2">?</span>
+                Unsupported Content Type
+              </h6>
               <p>Content type "{content.type}" is not supported.</p>
               <small>Supported types: text, image, video</small>
             </div>
@@ -466,7 +465,10 @@ const AdaptiveContentViewer = ({ content, onComplete, onNeedHelp }) => {
   if (!content) {
     return (
       <div className="alert alert-info">
-        <h6>📚 Ready to Learn</h6>
+        <h6>
+          <span className="icon me-2">◈</span>
+          Ready to Learn
+        </h6>
         <p>Select content from the sidebar to begin your adaptive learning journey through Mount Athos.</p>
       </div>
     );
@@ -476,20 +478,32 @@ const AdaptiveContentViewer = ({ content, onComplete, onNeedHelp }) => {
 
   return (
     <div className="adaptive-content-viewer">
-      {/* Enhanced Progress Header */}
+      {/* Clean Progress Header */}
       <div className="card mb-3">
-        <div className="card-header d-flex justify-content-between align-items-center bg-light">
+        <div className="card-header d-flex justify-content-between align-items-center">
           <div>
             <h5 className="mb-1">
-              {getContentTypeIcon()} {content.title}
+              <span className="icon me-2">{getContentTypeIcon()}</span>
+              {content.title}
             </h5>
             <div className="d-flex gap-2 align-items-center flex-wrap">
               {getDifficultyBadge()}
               <span className="badge bg-secondary">{content.type}</span>
-              <small className="text-muted">⏱️ {formatTime(timeSpent)}</small>
-              {isCompleted && <span className="badge bg-success">✅ Completed</span>}
+              <small className="text-muted">
+                <span className="icon me-1">⏱</span>
+                {formatTime(timeSpent)}
+              </small>
+              {isCompleted && (
+                <span className="badge bg-success">
+                  <span className="icon me-1">✓</span>
+                  Completed
+                </span>
+              )}
               {mediaLoaded && content.type !== 'text' && (
-                <span className="badge bg-info">📡 Loaded</span>
+                <span className="badge bg-info">
+                  <span className="icon me-1">◆</span>
+                  Loaded
+                </span>
               )}
             </div>
           </div>
@@ -500,7 +514,8 @@ const AdaptiveContentViewer = ({ content, onComplete, onNeedHelp }) => {
               disabled={isCompleted}
               title="Get help with this content"
             >
-              🆘 Need Help
+              <span className="icon me-1">?</span>
+              Need Help
             </button>
             <button 
               className="btn btn-success btn-sm"
@@ -508,18 +523,29 @@ const AdaptiveContentViewer = ({ content, onComplete, onNeedHelp }) => {
               disabled={isCompleted || readingProgress < completionThreshold}
               title={`Complete ${completionThreshold}% to finish`}
             >
-              {isCompleted ? '✅ Completed' : '✓ Mark Complete'}
+              {isCompleted ? (
+                <>
+                  <span className="icon me-1">✓</span>
+                  Completed
+                </>
+              ) : (
+                <>
+                  <span className="icon me-1">✓</span>
+                  Mark Complete
+                </>
+              )}
             </button>
           </div>
         </div>
         
-        {/* Enhanced Progress Bar with Content Type Specifics */}
+        {/* Clean Progress Bar */}
         <div className="card-body py-2">
           <div className="d-flex justify-content-between align-items-center mb-2">
             <small>
-              {content.type === 'text' && '📖 Reading Progress'}
-              {content.type === 'image' && '👁️ Viewing Progress'}
-              {content.type === 'video' && '🎬 Watch Progress'}
+              <span className="icon me-1">{getContentTypeIcon()}</span>
+              {content.type === 'text' && 'Reading Progress'}
+              {content.type === 'image' && 'Viewing Progress'}
+              {content.type === 'video' && 'Watch Progress'}
             </small>
             <small>{readingProgress}%</small>
           </div>
@@ -531,7 +557,8 @@ const AdaptiveContentViewer = ({ content, onComplete, onNeedHelp }) => {
           </div>
           {readingProgress < completionThreshold && !isCompleted && (
             <small className="text-muted">
-              💡 Complete at least {completionThreshold}% to mark as finished
+              <span className="icon me-1">→</span>
+              Complete at least {completionThreshold}% to mark as finished
               {content.type === 'video' && ' (watch most of the video)'}
               {content.type === 'image' && ' (spend enough time viewing)'}
               {content.type === 'text' && ' (read through the content)'}
@@ -548,16 +575,22 @@ const AdaptiveContentViewer = ({ content, onComplete, onNeedHelp }) => {
         {renderContent()}
       </div>
 
-      {/* Enhanced Adaptive Metadata Display */}
+      {/* Clean Adaptive Metadata Display */}
       {content.adaptiveMetadata && (
         <div className="card mt-3">
           <div className="card-header">
-            <h6 className="mb-0">🎯 Why This {content.type.charAt(0).toUpperCase() + content.type.slice(1)}?</h6>
+            <h6 className="mb-0">
+              <span className="icon me-2">⚡</span>
+              Why This {content.type.charAt(0).toUpperCase() + content.type.slice(1)}?
+            </h6>
           </div>
           <div className="card-body">
             {content.adaptiveMetadata.recommended && (
               <div className="alert alert-info mb-2">
-                <strong>📍 Recommended for you:</strong> {content.adaptiveMetadata.reason}
+                <strong>
+                  <span className="icon me-2">→</span>
+                  Recommended for you:
+                </strong> {content.adaptiveMetadata.reason}
               </div>
             )}
             
@@ -584,11 +617,14 @@ const AdaptiveContentViewer = ({ content, onComplete, onNeedHelp }) => {
         </div>
       )}
       
-      {/* Content-Type Specific Learning Tips */}
+      {/* Clean Learning Tips */}
       {timeSpent > 60 && readingProgress < 50 && (
         <div className="card mt-3 border-warning">
           <div className="card-body">
-            <h6 className="text-warning">💡 {content.type.charAt(0).toUpperCase() + content.type.slice(1)} Learning Tips</h6>
+            <h6 className="text-warning">
+              <span className="icon me-2">→</span>
+              {content.type.charAt(0).toUpperCase() + content.type.slice(1)} Learning Tips
+            </h6>
             <ul className="mb-0 small">
               {content.type === 'text' && (
                 <>

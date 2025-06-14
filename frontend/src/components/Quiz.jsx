@@ -18,14 +18,12 @@ const Quiz = ({ quizId, onCompleted }) => {
       try {
         const quizData = await getQuizById(quizId);
         setQuiz(quizData);
-        // Initialize answers array with null values
         if (quizData && quizData.questions) {
           setAnswers(Array(quizData.questions.length).fill(null));
         }
         setStartTime(Date.now());
         setLoading(false);
 
-        // Start tracking quiz behavior
         trackUserBehavior({
           quizId: quizId,
           timeSpent: 0,
@@ -64,7 +62,6 @@ const Quiz = ({ quizId, onCompleted }) => {
     newAnswers[questionIndex] = optionIndex;
     setAnswers(newAnswers);
 
-    // Track interaction
     trackUserBehavior({
       quizId: quizId,
       timeSpent: Math.round((Date.now() - startTime) / 1000),
@@ -81,7 +78,6 @@ const Quiz = ({ quizId, onCompleted }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Check if all questions are answered
     if (!quiz || !answers.length || answers.includes(null)) {
       alert('Please answer all questions before submitting');
       return;
@@ -90,7 +86,6 @@ const Quiz = ({ quizId, onCompleted }) => {
     try {
       setLoading(true);
       
-      // Format answers for submission
       const formattedAnswers = quiz.questions.map((question, index) => ({
         questionId: question._id,
         selectedOption: answers[index]
@@ -100,12 +95,11 @@ const Quiz = ({ quizId, onCompleted }) => {
       setResults(quizResults);
       setSubmitted(true);
 
-      // Track quiz completion
       const finalTimeSpent = Math.round((Date.now() - startTime) / 1000);
       trackUserBehavior({
         quizId: quizId,
         timeSpent: finalTimeSpent,
-        interactions: answers.length + 1, // One for each answer plus submit
+        interactions: answers.length + 1,
         actionType: 'complete',
         completed: true,
         metadata: {
@@ -139,18 +133,45 @@ const Quiz = ({ quizId, onCompleted }) => {
     return 'danger';
   };
 
-  if (loading) return <div className="text-center my-4">Loading quiz...</div>;
-  if (error) return <div className="alert alert-danger">{error}</div>;
-  if (!quiz) return <div className="alert alert-warning">Quiz not found</div>;
+  if (loading) return (
+    <div className="card">
+      <div className="card-body text-center py-4">
+        <div className="spinner-border" role="status">
+          <span className="visually-hidden">Loading quiz...</span>
+        </div>
+        <p className="mt-2 mb-0 text-muted">Loading quiz questions...</p>
+      </div>
+    </div>
+  );
+  
+  if (error) return (
+    <div className="alert alert-danger">
+      <span className="icon me-2">!</span>
+      {error}
+    </div>
+  );
+  
+  if (!quiz) return (
+    <div className="alert alert-warning">
+      <span className="icon me-2">?</span>
+      Quiz not found
+    </div>
+  );
 
   return (
-    <div className="quiz-container card mt-4">
-      <div className="card-header bg-primary text-white">
+    <div className="quiz-container card">
+      <div className="card-header">
         <div className="d-flex justify-content-between align-items-center">
-          <h5 className="mb-0">{quiz.title}</h5>
+          <h5 className="mb-0">
+            <span className="icon me-2">?</span>
+            {quiz.title}
+          </h5>
           {!submitted && startTime && (
             <div className="text-end">
-              <small>⏱️ Time: {formatTime(timeSpent)}</small>
+              <small className="text-muted">
+                <span className="icon me-1">⏱</span>
+                Time: {formatTime(timeSpent)}
+              </small>
             </div>
           )}
         </div>
@@ -188,15 +209,18 @@ const Quiz = ({ quizId, onCompleted }) => {
               </div>
             ))}
             
-            {/* Progress indicator */}
+            {/* Clean Progress indicator */}
             <div className="mb-3">
               <div className="d-flex justify-content-between align-items-center mb-2">
-                <small>Progress: {answers.filter(a => a !== null).length} / {quiz.questions.length} answered</small>
+                <small>
+                  <span className="icon me-1">◈</span>
+                  Progress: {answers.filter(a => a !== null).length} / {quiz.questions.length} answered
+                </small>
                 <small>{Math.round((answers.filter(a => a !== null).length / quiz.questions.length) * 100)}%</small>
               </div>
               <div className="progress" style={{ height: '6px' }}>
                 <div 
-                  className="progress-bar bg-primary"
+                  className="progress-bar"
                   style={{ width: `${(answers.filter(a => a !== null).length / quiz.questions.length) * 100}%` }}
                 ></div>
               </div>
@@ -207,12 +231,25 @@ const Quiz = ({ quizId, onCompleted }) => {
               className="btn btn-primary"
               disabled={loading || answers.includes(null)}
             >
-              {loading ? 'Submitting...' : 'Submit Quiz'}
+              {loading ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  <span className="icon me-2">✓</span>
+                  Submit Quiz
+                </>
+              )}
             </button>
           </form>
         ) : (
           <div className="results-container">
-            <h4 className="mb-3">Quiz Results</h4>
+            <h4 className="mb-3">
+              <span className="icon me-2">◈</span>
+              Quiz Results
+            </h4>
             {results ? (
               <>
                 <div className="score-display text-center mb-4">
@@ -223,42 +260,52 @@ const Quiz = ({ quizId, onCompleted }) => {
                     You got {results.correctAnswers || 0} out of {results.totalQuestions || quiz.questions.length} questions correct
                   </p>
                   <p className="text-muted">
-                    ⏱️ Completed in {formatTime(timeSpent)}
+                    <span className="icon me-2">⏱</span>
+                    Completed in {formatTime(timeSpent)}
                   </p>
                   
-                  {/* Performance feedback */}
+                  {/* Clean Performance feedback */}
                   {results.score >= 85 && (
                     <div className="alert alert-success">
-                      <strong>🎉 Excellent!</strong> You've mastered this material!
+                      <strong>
+                        <span className="icon me-2">✓</span>
+                        Excellent!
+                      </strong> You've mastered this material!
                     </div>
                   )}
                   {results.score >= 70 && results.score < 85 && (
                     <div className="alert alert-info">
-                      <strong>👍 Good job!</strong> You have a solid understanding.
+                      <strong>
+                        <span className="icon me-2">◈</span>
+                        Good job!
+                      </strong> You have a solid understanding.
                     </div>
                   )}
                   {results.score < 70 && (
                     <div className="alert alert-warning">
-                      <strong>📚 Keep studying!</strong> Consider reviewing the material and retaking this quiz.
+                      <strong>
+                        <span className="icon me-2">◈</span>
+                        Keep studying!
+                      </strong> Consider reviewing the material and retaking this quiz.
                     </div>
                   )}
                 </div>
                 
                 <div className="answer-review">
-                  <h5>Review Your Answers</h5>
+                  <h5>
+                    <span className="icon me-2">◈</span>
+                    Review Your Answers
+                  </h5>
                   {quiz.questions && quiz.questions.map((question, qIndex) => {
-                    // Safely check results
                     const resultItem = results.results && results.results[qIndex];
                     const isCorrect = resultItem ? resultItem.isCorrect : false;
                     
-                    // Safely get selected option
                     const selectedIndex = answers[qIndex];
                     const selectedOption = question.options && selectedIndex !== null && 
                                           selectedIndex !== undefined && 
                                           selectedIndex < question.options.length ? 
                                           question.options[selectedIndex] : null;
                     
-                    // Safely find correct option
                     const correctOption = question.options ? 
                                          question.options.find(opt => opt.isCorrect) : 
                                          null;
@@ -271,7 +318,8 @@ const Quiz = ({ quizId, onCompleted }) => {
                         <h6 className="d-flex justify-content-between align-items-center">
                           <span>{qIndex + 1}. {question.text}</span>
                           <span className={`badge ${isCorrect ? 'bg-success' : 'bg-danger'}`}>
-                            {isCorrect ? '✓ Correct' : '✗ Incorrect'}
+                            <span className="icon me-1">{isCorrect ? '✓' : '×'}</span>
+                            {isCorrect ? 'Correct' : 'Incorrect'}
                           </span>
                         </h6>
                         {selectedOption && (
@@ -291,6 +339,7 @@ const Quiz = ({ quizId, onCompleted }) => {
               </>
             ) : (
               <div className="alert alert-warning">
+                <span className="icon me-2">!</span>
                 Could not load quiz results. Please try again.
               </div>
             )}
@@ -300,7 +349,8 @@ const Quiz = ({ quizId, onCompleted }) => {
                 className="btn btn-primary" 
                 onClick={() => window.location.reload()}
               >
-                🔄 Retake Quiz
+                <span className="icon me-2">↻</span>
+                Retake Quiz
               </button>
               <button 
                 className="btn btn-outline-secondary"
@@ -312,7 +362,8 @@ const Quiz = ({ quizId, onCompleted }) => {
                   setTimeSpent(0);
                 }}
               >
-                📝 Try Again
+                <span className="icon me-2">→</span>
+                Try Again
               </button>
             </div>
           </div>

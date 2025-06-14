@@ -58,19 +58,28 @@ const Register = ({ setIsAuthenticated, setUser }) => {
   };
   
   return (
-    <div className="register-container">
+    <div className="auth-container fade-in">
       <div className="row justify-content-center">
-        <div className="col-md-6">
+        <div className="col-md-6 col-lg-5">
           <div className="card">
-            <div className="card-header bg-primary text-white">
-              <h4 className="mb-0">Register</h4>
+            <div className="card-header text-center">
+              <h4 className="mb-0">Join Our Community</h4>
+              <p className="text-muted mb-0">Begin your Mount Athos learning journey</p>
             </div>
             <div className="card-body">
-              {error && <div className="alert alert-danger">{error}</div>}
+              {error && (
+                <div className="alert alert-danger">
+                  <span className="icon me-2">!</span>
+                  {error}
+                </div>
+              )}
               
               <form onSubmit={handleSubmit}>
                 <div className="mb-3">
-                  <label htmlFor="username" className="form-label">Username</label>
+                  <label htmlFor="username" className="form-label">
+                    <span className="icon me-1">◊</span>
+                    Username
+                  </label>
                   <input
                     type="text"
                     className="form-control"
@@ -78,11 +87,16 @@ const Register = ({ setIsAuthenticated, setUser }) => {
                     name="username"
                     value={formData.username}
                     onChange={handleChange}
+                    placeholder="Choose a username"
                     required
                   />
                 </div>
+                
                 <div className="mb-3">
-                  <label htmlFor="email" className="form-label">Email</label>
+                  <label htmlFor="email" className="form-label">
+                    <span className="icon me-1">@</span>
+                    Email Address
+                  </label>
                   <input
                     type="email"
                     className="form-control"
@@ -90,11 +104,16 @@ const Register = ({ setIsAuthenticated, setUser }) => {
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
+                    placeholder="Enter your email"
                     required
                   />
                 </div>
+                
                 <div className="mb-3">
-                  <label htmlFor="password" className="form-label">Password</label>
+                  <label htmlFor="password" className="form-label">
+                    <span className="icon me-1">*</span>
+                    Password
+                  </label>
                   <input
                     type="password"
                     className="form-control"
@@ -102,11 +121,16 @@ const Register = ({ setIsAuthenticated, setUser }) => {
                     name="password"
                     value={formData.password}
                     onChange={handleChange}
+                    placeholder="Create a password"
                     required
                   />
                 </div>
+                
                 <div className="mb-3">
-                  <label htmlFor="confirmPassword" className="form-label">Confirm Password</label>
+                  <label htmlFor="confirmPassword" className="form-label">
+                    <span className="icon me-1">*</span>
+                    Confirm Password
+                  </label>
                   <input
                     type="password"
                     className="form-control"
@@ -114,11 +138,16 @@ const Register = ({ setIsAuthenticated, setUser }) => {
                     name="confirmPassword"
                     value={formData.confirmPassword}
                     onChange={handleChange}
+                    placeholder="Confirm your password"
                     required
                   />
                 </div>
-                <div className="mb-3">
-                  <label htmlFor="learningStyle" className="form-label">Preferred Learning Style</label>
+                
+                <div className="mb-4">
+                  <label htmlFor="learningStyle" className="form-label">
+                    <span className="icon me-1">⚡</span>
+                    Preferred Learning Style
+                  </label>
                   <select
                     className="form-select"
                     id="learningStyle"
@@ -126,14 +155,42 @@ const Register = ({ setIsAuthenticated, setUser }) => {
                     value={formData.learningStyle}
                     onChange={handleChange}
                   >
-                    <option value="visual">Visual</option>
-                    <option value="textual">Textual</option>
+                    <option value="visual">Visual Learner (images, videos)</option>
+                    <option value="textual">Text Learner (reading, text)</option>
                   </select>
+                  <small className="text-muted">
+                    This helps us personalize your learning experience
+                  </small>
                 </div>
-                <button type="submit" className="btn btn-primary" disabled={loading}>
-                  {loading ? 'Registering...' : 'Register'}
+                
+                <button 
+                  type="submit" 
+                  className="btn btn-primary w-100 mb-3" 
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                      Creating account...
+                    </>
+                  ) : (
+                    <>
+                      <span className="icon me-2">+</span>
+                      Create Account
+                    </>
+                  )}
                 </button>
               </form>
+              
+              <div className="text-center">
+                <p className="text-muted mb-0">
+                  Already have an account? 
+                  <a href="/login" className="text-decoration-none ms-1">
+                    <span className="icon me-1">→</span>
+                    Sign in here
+                  </a>
+                </p>
+              </div>
             </div>
           </div>
         </div>

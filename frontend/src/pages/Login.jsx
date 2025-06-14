@@ -38,19 +38,28 @@ const Login = ({ setIsAuthenticated, setUser }) => {
   };
   
   return (
-    <div className="login-container">
+    <div className="auth-container fade-in">
       <div className="row justify-content-center">
-        <div className="col-md-6">
+        <div className="col-md-6 col-lg-5">
           <div className="card">
-            <div className="card-header bg-primary text-white">
-              <h4 className="mb-0">Login</h4>
+            <div className="card-header text-center">
+              <h4 className="mb-0">Welcome Back</h4>
+              <p className="text-muted mb-0">Continue your Mount Athos journey</p>
             </div>
             <div className="card-body">
-              {error && <div className="alert alert-danger">{error}</div>}
+              {error && (
+                <div className="alert alert-danger">
+                  <span className="icon me-2">!</span>
+                  {error}
+                </div>
+              )}
               
               <form onSubmit={handleSubmit}>
                 <div className="mb-3">
-                  <label htmlFor="email" className="form-label">Email</label>
+                  <label htmlFor="email" className="form-label">
+                    <span className="icon me-1">@</span>
+                    Email Address
+                  </label>
                   <input
                     type="email"
                     className="form-control"
@@ -58,11 +67,16 @@ const Login = ({ setIsAuthenticated, setUser }) => {
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
+                    placeholder="Enter your email"
                     required
                   />
                 </div>
-                <div className="mb-3">
-                  <label htmlFor="password" className="form-label">Password</label>
+                
+                <div className="mb-4">
+                  <label htmlFor="password" className="form-label">
+                    <span className="icon me-1">*</span>
+                    Password
+                  </label>
                   <input
                     type="password"
                     className="form-control"
@@ -70,13 +84,39 @@ const Login = ({ setIsAuthenticated, setUser }) => {
                     name="password"
                     value={formData.password}
                     onChange={handleChange}
+                    placeholder="Enter your password"
                     required
                   />
                 </div>
-                <button type="submit" className="btn btn-primary" disabled={loading}>
-                  {loading ? 'Logging in...' : 'Login'}
+                
+                <button 
+                  type="submit" 
+                  className="btn btn-primary w-100 mb-3" 
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                      Signing in...
+                    </>
+                  ) : (
+                    <>
+                      <span className="icon me-2">→</span>
+                      Sign In
+                    </>
+                  )}
                 </button>
               </form>
+              
+              <div className="text-center">
+                <p className="text-muted mb-0">
+                  Don't have an account? 
+                  <a href="/register" className="text-decoration-none ms-1">
+                    <span className="icon me-1">+</span>
+                    Register here
+                  </a>
+                </p>
+              </div>
             </div>
           </div>
         </div>

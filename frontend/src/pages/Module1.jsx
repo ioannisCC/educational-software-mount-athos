@@ -18,9 +18,11 @@ const Module1 = ({ user }) => {
   const [error, setError] = useState(null);
   const [useAdaptive, setUseAdaptive] = useState(true);
   const [showRecommendations, setShowRecommendations] = useState(true);
-  const [contentFilter, setContentFilter] = useState('all'); // all, text, image, video
+  const [contentFilter, setContentFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sidebarTab, setSidebarTab] = useState('content'); // content, quizzes, recommendations
+  const [showSlidingRecommendations, setShowSlidingRecommendations] = useState(false);
 
-  // Module ID for this page
   const moduleId = 1;
 
   useEffect(() => {
@@ -93,22 +95,10 @@ const Module1 = ({ user }) => {
 
   const handleQuizComplete = (results) => {
     console.log('Quiz completed with results:', results);
-    
-    if (useAdaptive) {
-      setTimeout(() => {
-        fetchModuleData();
-      }, 1000);
-    }
   };
 
   const handleContentComplete = (content, metrics) => {
     console.log('Content completed:', content.title, 'Metrics:', metrics);
-    
-    if (useAdaptive) {
-      setTimeout(() => {
-        fetchModuleData();
-      }, 1000);
-    }
   };
 
   const handleNeedHelp = (content, metrics) => {
@@ -158,21 +148,42 @@ const Module1 = ({ user }) => {
   const getFilteredContent = () => {
     const displayContent = getDisplayContent();
     
+    let filtered = displayContent;
+    
+    // Apply search filter
+    if (searchTerm) {
+      filtered = filtered.filter(item => 
+        item.title.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
     if (!user?.preferences?.learningStyle) {
-      return displayContent;
+      return filtered;
     }
 
     // For visual learners, prioritize visual content
     if (user.preferences.learningStyle === 'visual') {
-      const visualContent = displayContent.filter(c => c.type !== 'text');
-      const textContent = displayContent.filter(c => c.type === 'text');
+      const visualContent = filtered.filter(c => c.type !== 'text');
+      const textContent = filtered.filter(c => c.type === 'text');
       return [...visualContent, ...textContent];
     } else {
       // For textual learners, prioritize text content
-      const textContent = displayContent.filter(c => c.type === 'text');
-      const visualContent = displayContent.filter(c => c.type !== 'text');
+      const textContent = filtered.filter(c => c.type === 'text');
+      const visualContent = filtered.filter(c => c.type !== 'text');
       return [...textContent, ...visualContent];
     }
+  };
+
+  const getFilteredQuizzes = () => {
+    const sourceQuizzes = useAdaptive && adaptiveQuizzes.length > 0 ? adaptiveQuizzes : quizzes;
+    
+    if (searchTerm) {
+      return sourceQuizzes.filter(quiz => 
+        quiz.title.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    return sourceQuizzes;
   };
 
   const getContentTypeIcon = (type) => {
@@ -193,341 +204,415 @@ const Module1 = ({ user }) => {
     }
   };
 
-  if (loading) return <div className="text-center my-4">Loading module data...</div>;
-  if (error) return <div className="alert alert-danger">{error}</div>;
+  if (loading) return <div className="text-center py-5">Loading module data...</div>;
+  if (error) return <div className="alert alert-danger m-3">{error}</div>;
 
-  const displayQuizzes = useAdaptive && adaptiveQuizzes.length > 0 ? adaptiveQuizzes : quizzes;
   const filteredContent = getFilteredContent();
+  const filteredQuizzes = getFilteredQuizzes();
 
   return (
-    <div className="module-container">
-      <div className="row">
-        <div className="col-md-3">
-          {/* Enhanced Module Header */}
-          <div className="card mb-3">
-            <div className="card-header bg-primary text-white">
-              <h5 className="mb-1">📜 Module 1: History & Religious Significance</h5>
-              <div className="d-flex flex-wrap gap-2 mt-2">
-                <div className="form-check form-switch">
-                  <input 
-                    className="form-check-input" 
-                    type="checkbox" 
-                    id="adaptiveToggle"
-                    checked={useAdaptive}
-                    onChange={(e) => setUseAdaptive(e.target.checked)}
-                  />
-                  <label className="form-check-label small" htmlFor="adaptiveToggle">
-                    🎯 Adaptive {useAdaptive && adaptiveContent.length > 0 ? '(Active)' : '(Fallback)'}
-                  </label>
+    <div className="module-redesign" style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+      
+      {/* COMPACT HEADER */}
+      <div className="module-header bg-primary text-white p-3 shadow-sm">
+        <div className="container-fluid">
+          <div className="row align-items-center">
+            <div className="col-md-8">
+              <div className="d-flex align-items-center gap-3">
+                <h4 className="mb-0">📜 Module 1: History & Religious Significance</h4>
+                <div className="d-flex gap-2">
+                  <span className="badge bg-light text-primary">
+                    {filteredContent.length} Contents
+                  </span>
+                  <span className="badge bg-light text-primary">
+                    {filteredQuizzes.length} Quizzes
+                  </span>
+                  {user?.preferences?.learningStyle && (
+                    <span className="badge bg-warning">
+                      {user.preferences.learningStyle === 'visual' ? '👁️ Visual' : '📖 Textual'}
+                    </span>
+                  )}
                 </div>
               </div>
-              {user?.preferences?.learningStyle && (
-                <small className="d-block mt-1">
-                  👤 Learning Style: {user.preferences.learningStyle === 'visual' ? '👁️ Visual' : '📖 Textual'}
-                </small>
+            </div>
+            <div className="col-md-4 text-end">
+              <div className="form-check form-switch d-inline-block me-3">
+                <input 
+                  className="form-check-input" 
+                  type="checkbox" 
+                  id="adaptiveToggle"
+                  checked={useAdaptive}
+                  onChange={(e) => setUseAdaptive(e.target.checked)}
+                />
+                <label className="form-check-label text-white" htmlFor="adaptiveToggle">
+                  🎯 Adaptive
+                </label>
+              </div>
+              <div className="form-check form-switch d-inline-block">
+                <input 
+                  className="form-check-input" 
+                  type="checkbox" 
+                  id="recommendationsToggle"
+                  checked={showRecommendations}
+                  onChange={(e) => setShowRecommendations(e.target.checked)}
+                />
+                <label className="form-check-label text-white" htmlFor="recommendationsToggle">
+                  💡 Recommendations
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* MAIN LEARNING AREA */}
+      <div className="main-learning-area flex-grow-1 d-flex" style={{ minHeight: 0 }}>
+        
+        {/* COMPACT SIDEBAR */}
+        <div className="sidebar bg-light border-end" style={{ width: '320px', display: 'flex', flexDirection: 'column' }}>
+          
+          {/* Sidebar Header with Search and Filters */}
+          <div className="sidebar-header p-3 border-bottom">
+            <div className="input-group input-group-sm mb-2">
+              <span className="input-group-text">🔍</span>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Search content & quizzes..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              {searchTerm && (
+                <button 
+                  className="btn btn-outline-secondary"
+                  onClick={() => setSearchTerm('')}
+                >
+                  ✕
+                </button>
               )}
             </div>
-          </div>
-
-          {/* Content Type Filter */}
-          <div className="card mb-3">
-            <div className="card-header bg-light">
-              <h6 className="mb-0">🎨 Content Filter</h6>
-            </div>
-            <div className="card-body py-2">
-              <div className="btn-group-vertical w-100" role="group">
-                <input type="radio" className="btn-check" name="contentFilter" id="filter-all" 
-                       checked={contentFilter === 'all'} onChange={() => setContentFilter('all')} />
-                <label className="btn btn-outline-secondary btn-sm" htmlFor="filter-all">
-                  📚 All Content ({filteredContent.length})
-                </label>
-                
-                <input type="radio" className="btn-check" name="contentFilter" id="filter-text" 
-                       checked={contentFilter === 'text'} onChange={() => setContentFilter('text')} />
-                <label className="btn btn-outline-primary btn-sm" htmlFor="filter-text">
-                  📖 Text ({content.filter(c => c.type === 'text').length})
-                </label>
-                
-                <input type="radio" className="btn-check" name="contentFilter" id="filter-image" 
-                       checked={contentFilter === 'image'} onChange={() => setContentFilter('image')} />
-                <label className="btn btn-outline-success btn-sm" htmlFor="filter-image">
-                  🖼️ Images ({content.filter(c => c.type === 'image').length})
-                </label>
-                
-                <input type="radio" className="btn-check" name="contentFilter" id="filter-video" 
-                       checked={contentFilter === 'video'} onChange={() => setContentFilter('video')} />
-                <label className="btn btn-outline-danger btn-sm" htmlFor="filter-video">
-                  🎬 Videos ({content.filter(c => c.type === 'video').length})
-                </label>
-              </div>
+            
+            {/* Filter Buttons */}
+            <div className="btn-group w-100" role="group">
+              <input type="radio" className="btn-check" name="contentFilter" id="filter-all" 
+                     checked={contentFilter === 'all'} onChange={() => setContentFilter('all')} />
+              <label className="btn btn-outline-secondary btn-sm" htmlFor="filter-all">All</label>
+              
+              <input type="radio" className="btn-check" name="contentFilter" id="filter-text" 
+                     checked={contentFilter === 'text'} onChange={() => setContentFilter('text')} />
+              <label className="btn btn-outline-primary btn-sm" htmlFor="filter-text">📖</label>
+              
+              <input type="radio" className="btn-check" name="contentFilter" id="filter-image" 
+                     checked={contentFilter === 'image'} onChange={() => setContentFilter('image')} />
+              <label className="btn btn-outline-success btn-sm" htmlFor="filter-image">🖼️</label>
+              
+              <input type="radio" className="btn-check" name="contentFilter" id="filter-video" 
+                     checked={contentFilter === 'video'} onChange={() => setContentFilter('video')} />
+              <label className="btn btn-outline-danger btn-sm" htmlFor="filter-video">🎬</label>
             </div>
           </div>
 
-          {/* Enhanced Content Navigation */}
-          <div className="card mb-4">
-            <div className="card-body p-0">
-              <ul className="list-group list-group-flush">
-                <li className="list-group-item bg-light fw-bold d-flex justify-content-between">
-                  📚 Content 
-                  <div>
-                    {useAdaptive && adaptiveContent.length > 0 && (
-                      <span className="badge bg-primary">Smart</span>
-                    )}
-                    {user?.preferences?.learningStyle === 'visual' && (
-                      <span className="badge bg-success ms-1">👁️</span>
-                    )}
+          {/* Sidebar Navigation Tabs */}
+          <ul className="nav nav-tabs nav-fill">
+            <li className="nav-item">
+              <button 
+                className={`nav-link ${sidebarTab === 'content' ? 'active' : ''}`}
+                onClick={() => setSidebarTab('content')}
+              >
+                📚 Content ({filteredContent.length})
+              </button>
+            </li>
+            <li className="nav-item">
+              <button 
+                className={`nav-link ${sidebarTab === 'quizzes' ? 'active' : ''}`}
+                onClick={() => setSidebarTab('quizzes')}
+              >
+                🧠 Quizzes ({filteredQuizzes.length})
+              </button>
+            </li>
+            {useAdaptive && (
+              <li className="nav-item">
+              <button 
+                className={`nav-link ${showSlidingRecommendations ? 'active' : ''}`}
+                onClick={() => setShowSlidingRecommendations(!showSlidingRecommendations)}
+              >
+                🎯 Smart {showSlidingRecommendations ? '▲' : '▼'}
+              </button>
+            </li>
+            )}
+          </ul>
+
+          {/* SCROLLABLE CONTENT LIST */}
+          <div className="sidebar-content flex-grow-1 overflow-auto">
+            
+            {sidebarTab === 'content' && (
+              <div className="content-list">
+                {filteredContent.length === 0 ? (
+                  <div className="p-3 text-center text-muted">
+                    <div className="mb-2">📭</div>
+                    <div>No content matches your filters</div>
                   </div>
-                </li>
-                {filteredContent.map(item => (
-                  <li 
-                    key={item._id} 
-                    className={`list-group-item list-group-item-action ${activeContent?._id === item._id ? 'active' : ''}`}
-                    onClick={() => handleContentSelect(item)}
-                    style={{cursor: 'pointer'}}
-                  >
-                    <div className="d-flex justify-content-between align-items-start">
-                      <div className="flex-grow-1">
-                        <div className="d-flex align-items-center mb-1">
-                          <span className="me-2">{getContentTypeIcon(item.type)}</span>
-                          <span className="small fw-medium">{item.title}</span>
-                        </div>
-                        <div className="d-flex gap-1 flex-wrap">
-                          <span className={`badge bg-${getContentTypeColor(item.type)} badge-sm`}>
-                            {item.type}
-                          </span>
-                          {item.difficulty === 'advanced' && 
-                            <span className="badge bg-warning badge-sm">Advanced</span>
-                          }
-                          {item.adaptiveMetadata?.recommended && 
-                            <span className="badge bg-success badge-sm">⭐</span>
-                          }
-                          {item.adaptiveMetadata?.priority === 'high' && 
-                            <span className="badge bg-danger badge-sm">!</span>
-                          }
-                          {item.adaptiveMetadata?.visualLearnerBoost && 
-                            <span className="badge bg-info badge-sm">👁️</span>
-                          }
+                ) : (
+                  filteredContent.map(item => (
+                    <div
+                      key={item._id}
+                      className={`content-item p-3 border-bottom cursor-pointer hover-bg-light ${
+                        activeContent?._id === item._id ? 'bg-primary text-white' : ''
+                      }`}
+                      onClick={() => handleContentSelect(item)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <div className="d-flex align-items-start gap-2">
+                        <span className="content-icon">{getContentTypeIcon(item.type)}</span>
+                        <div className="flex-grow-1">
+                          <div className="content-title fw-medium small">{item.title}</div>
+                          <div className="content-badges mt-1">
+                            <span className={`badge bg-${getContentTypeColor(item.type)} badge-sm me-1`}>
+                              {item.type}
+                            </span>
+                            {item.difficulty === 'advanced' && 
+                              <span className="badge bg-warning badge-sm me-1">Advanced</span>
+                            }
+                            {item.adaptiveMetadata?.recommended && 
+                              <span className="badge bg-success badge-sm me-1">⭐</span>
+                            }
+                            {item.adaptiveMetadata?.priority === 'high' && 
+                              <span className="badge bg-danger badge-sm">!</span>
+                            }
+                          </div>
+                          {item.adaptiveMetadata?.reason && (
+                            <div className="content-reason small text-muted mt-1">
+                              💡 {item.adaptiveMetadata.reason}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
-                    {item.adaptiveMetadata?.reason && (
-                      <small className="text-muted d-block mt-1">
-                        💡 {item.adaptiveMetadata.reason}
-                      </small>
-                    )}
-                  </li>
-                ))}
-                
-                {/* Quiz Section */}
-                <li className="list-group-item bg-light fw-bold d-flex justify-content-between">
-                  🧠 Quizzes
-                  {useAdaptive && adaptiveQuizzes.length > 0 && (
-                    <span className="badge bg-primary">Smart</span>
-                  )}
-                </li>
-                {displayQuizzes.map(quiz => (
-                  <li 
-                    key={quiz._id} 
-                    className={`list-group-item list-group-item-action ${activeQuiz?._id === quiz._id ? 'active' : ''}`}
-                    onClick={() => handleQuizSelect(quiz)}
-                    style={{cursor: 'pointer'}}
-                  >
-                    <div className="d-flex justify-content-between align-items-center">
-                      <span>{quiz.title}</span>
-                      <div>
-                        {quiz.adaptiveMetadata?.shouldRetake && 
-                          <span className="badge bg-warning ms-1">🔄</span>
-                        }
-                        {quiz.adaptiveMetadata?.recommended && 
-                          <span className="badge bg-success ms-1">⭐</span>
-                        }
-                        {quiz.adaptiveMetadata?.lastScore && 
-                          <span className="badge bg-info ms-1">{quiz.adaptiveMetadata.lastScore}%</span>
-                        }
+                  ))
+                )}
+              </div>
+            )}
+
+            {sidebarTab === 'quizzes' && (
+              <div className="quiz-list">
+                {filteredQuizzes.length === 0 ? (
+                  <div className="p-3 text-center text-muted">
+                    <div className="mb-2">🎯</div>
+                    <div>No quizzes match your search</div>
+                  </div>
+                ) : (
+                  filteredQuizzes.map(quiz => (
+                    <div
+                      key={quiz._id}
+                      className={`quiz-item p-3 border-bottom cursor-pointer hover-bg-light ${
+                        activeQuiz?._id === quiz._id ? 'bg-primary text-white' : ''
+                      }`}
+                      onClick={() => handleQuizSelect(quiz)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <div className="d-flex align-items-start gap-2">
+                        <span className="quiz-icon">🧠</span>
+                        <div className="flex-grow-1">
+                          <div className="quiz-title fw-medium small">{quiz.title}</div>
+                          <div className="quiz-badges mt-1">
+                            {quiz.adaptiveMetadata?.shouldRetake && 
+                              <span className="badge bg-warning badge-sm me-1">🔄</span>
+                            }
+                            {quiz.adaptiveMetadata?.recommended && 
+                              <span className="badge bg-success badge-sm me-1">⭐</span>
+                            }
+                            {quiz.adaptiveMetadata?.lastScore && 
+                              <span className="badge bg-info badge-sm me-1">{quiz.adaptiveMetadata.lastScore}%</span>
+                            }
+                          </div>
+                          {quiz.adaptiveMetadata?.reason && (
+                            <div className="quiz-reason small text-muted mt-1">
+                              💡 {quiz.adaptiveMetadata.reason}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                    {quiz.adaptiveMetadata?.reason && (
-                      <small className="text-muted d-block mt-1">
-                        💡 {quiz.adaptiveMetadata.reason}
-                      </small>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
+                  ))
+                )}
+              </div>
+            )}
           </div>
-          
-          {/* Toggle Recommendations */}
-          {useAdaptive && (
-            <div className="card mb-3">
-              <div className="card-body py-2">
-                <div className="form-check form-switch">
-                  <input 
-                    className="form-check-input" 
-                    type="checkbox" 
-                    id="recommendationsToggle"
-                    checked={showRecommendations}
-                    onChange={(e) => setShowRecommendations(e.target.checked)}
-                  />
-                  <label className="form-check-label small" htmlFor="recommendationsToggle">
-                    Show Recommendations
-                  </label>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Learning Style Info */}
-          {user?.preferences?.learningStyle && (
-            <div className="card mb-3">
-              <div className="card-body py-2">
-                <h6 className="small mb-1">🎯 Your Learning Style</h6>
-                <p className="small mb-0">
-                  {user.preferences.learningStyle === 'visual' 
-                    ? '👁️ Visual: You learn best with images, videos, and visual content. They appear first in your content list.'
-                    : '📖 Textual: You learn best with text-based content. Written materials appear first in your content list.'
-                  }
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* User progress */}
-          <Progress />
         </div>
-        
-        <div className="col-md-9">
-          {/* Adaptive Recommendations */}
-          {useAdaptive && showRecommendations && (
-            <AdaptiveRecommendations 
-              onSelectContent={handleRecommendationSelect}
-              onSelectQuiz={handleQuizRecommendationSelect}
-            />
-          )}
 
-          {/* Content display area */}
-          {activeContent && (
-            <AdaptiveContentViewer
-              content={activeContent}
-              onComplete={handleContentComplete}
-              onNeedHelp={handleNeedHelp}
-            />
-          )}
-          
-          {/* Quiz display area */}
-          {activeQuiz && (
-            <Quiz 
-              quizId={activeQuiz._id} 
-              onCompleted={handleQuizComplete} 
-            />
-          )}
-          
-          {/* Enhanced Default view */}
-          {!activeContent && !activeQuiz && (
-            <div className="card">
-              <div className="card-header bg-primary text-white">
-                <h4 className="mb-0">📜 Welcome to Module 1: History & Religious Significance</h4>
-              </div>
-              <div className="card-body">
-                <div className="row">
-                  <div className="col-md-8">
-                    <p className="lead">
-                      Discover over 1000 years of monastic tradition on the Holy Mountain of Mount Athos.
-                    </p>
-                    
-                    {useAdaptive && adaptiveContent.length > 0 ? (
-                      <div className="alert alert-info">
-                        <h6>🎯 Adaptive Learning Active!</h6>
-                        <p className="mb-2">Content is personalized based on your learning style and performance:</p>
-                        <ul className="mb-0">
-                          <li>📊 Performance-based content recommendations</li>
-                          <li>🎯 Personalized learning paths</li>
-                          <li>📈 Real-time progress tracking</li>
-                          <li>💡 Struggle detection and help suggestions</li>
-                          {user?.preferences?.learningStyle === 'visual' && (
-                            <li>👁️ Visual content prioritized for you</li>
-                          )}
-                          {user?.preferences?.learningStyle === 'textual' && (
-                            <li>📖 Text content prioritized for you</li>
-                          )}
-                        </ul>
-                      </div>
-                    ) : (
-                      <div className="alert alert-warning">
-                        <h6>📚 Standard Learning Mode</h6>
-                        <p className="mb-0">Enable adaptive learning for a personalized experience that adapts to your learning style and progress.</p>
-                      </div>
-                    )}
-
-                    <h6 className="mt-3">📚 What You'll Learn:</h6>
-                    <div className="row">
-                      <div className="col-sm-6">
-                        <ul>
-                          <li>🏛️ Foundation by St. Athanasius (963 AD)</li>
-                          <li>👑 Byzantine imperial support</li>
-                          <li>⛪ Orthodox Christian significance</li>
-                        </ul>
-                      </div>
-                      <div className="col-sm-6">
-                        <ul>
-                          <li>🚫 The Avaton tradition</li>
-                          <li>🌍 UNESCO World Heritage status</li>
-                          <li>📜 Spiritual and cultural impact</li>
-                        </ul>
-                      </div>
-                    </div>
+        {/* MAIN CONTENT AREA */}
+        <div className="content-area flex-grow-1 d-flex flex-column" style={{ minWidth: 0 }}>
+          <div className="content-display flex-grow-1 overflow-auto p-3">
+            
+            {/* Content display area */}
+            {activeContent && (
+              <AdaptiveContentViewer
+                content={activeContent}
+                onComplete={handleContentComplete}
+                onNeedHelp={handleNeedHelp}
+              />
+            )}
+            
+            {/* Quiz display area */}
+            {activeQuiz && (
+              <Quiz 
+                quizId={activeQuiz._id} 
+                onCompleted={handleQuizComplete} 
+              />
+            )}
+            
+            {/* Enhanced Default view */}
+            {!activeContent && !activeQuiz && (
+              <div className="welcome-screen text-center py-5">
+                <div className="mb-4">
+                  <h2 className="text-primary mb-3">📜 Welcome to Module 1: History & Religious Significance</h2>
+                  <p className="lead text-muted">
+                    Discover over 1000 years of monastic tradition on the Holy Mountain of Mount Athos.
+                  </p>
+                </div>
+                
+                {useAdaptive && adaptiveContent.length > 0 ? (
+                  <div className="alert alert-info mb-4">
+                    <h6>🎯 Adaptive Learning Active!</h6>
+                    <p className="mb-2">Content is personalized based on your learning style and performance:</p>
+                    <ul className="mb-0 text-start">
+                      <li>📊 Performance-based content recommendations</li>
+                      <li>🎯 Personalized learning paths</li>
+                      <li>📈 Real-time progress tracking</li>
+                      <li>💡 Struggle detection and help suggestions</li>
+                      {user?.preferences?.learningStyle === 'visual' && (
+                        <li>👁️ Visual content prioritized for you</li>
+                      )}
+                      {user?.preferences?.learningStyle === 'textual' && (
+                        <li>📖 Text content prioritized for you</li>
+                      )}
+                    </ul>
                   </div>
-                  <div className="col-md-4">
-                    <div className="card bg-light">
-                      <div className="card-body text-center">
-                        <h6>📊 Content Overview</h6>
-                        <div className="row">
-                          <div className="col-4">
+                ) : (
+                  <div className="alert alert-warning mb-4">
+                    <h6>📚 Standard Learning Mode</h6>
+                    <p className="mb-0">Enable adaptive learning for a personalized experience that adapts to your learning style and progress.</p>
+                  </div>
+                )}
+
+                <div className="row mb-4">
+                  <div className="col-md-6 offset-md-3">
+                    <div className="card bg-light border-0">
+                      <div className="card-body">
+                        <h6>📊 Module Overview</h6>
+                        <div className="row text-center">
+                          <div className="col-3">
                             <div className="text-primary">
                               <strong>{content.filter(c => c.type === 'text').length}</strong>
                               <br /><small>📖 Texts</small>
                             </div>
                           </div>
-                          <div className="col-4">
+                          <div className="col-3">
                             <div className="text-success">
                               <strong>{content.filter(c => c.type === 'image').length}</strong>
                               <br /><small>🖼️ Images</small>
                             </div>
                           </div>
-                          <div className="col-4">
+                          <div className="col-3">
                             <div className="text-danger">
                               <strong>{content.filter(c => c.type === 'video').length}</strong>
                               <br /><small>🎬 Videos</small>
                             </div>
                           </div>
-                        </div>
-                        <hr />
-                        <div className="text-warning">
-                          <strong>{quizzes.length}</strong><br />
-                          <small>🧠 Quizzes</small>
+                          <div className="col-3">
+                            <div className="text-warning">
+                              <strong>{quizzes.length}</strong>
+                              <br /><small>🧠 Quizzes</small>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
-                    
-                    <div className="mt-3 text-center">
-                      <button 
-                        className="btn btn-primary btn-lg"
-                        onClick={() => {
-                          const firstContent = filteredContent[0];
-                          if (firstContent) handleContentSelect(firstContent);
-                        }}
-                        disabled={filteredContent.length === 0}
-                      >
-                        🚀 Start Learning
-                      </button>
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <h6>📚 What You'll Learn:</h6>
+                  <div className="row">
+                    <div className="col-md-6">
+                      <ul className="list-unstyled text-start">
+                        <li className="mb-2">🏛️ Foundation by St. Athanasius (963 AD)</li>
+                        <li className="mb-2">👑 Byzantine imperial support</li>
+                        <li className="mb-2">⛪ Orthodox Christian significance</li>
+                      </ul>
+                    </div>
+                    <div className="col-md-6">
+                      <ul className="list-unstyled text-start">
+                        <li className="mb-2">🚫 The Avaton tradition</li>
+                        <li className="mb-2">🌍 UNESCO World Heritage status</li>
+                        <li className="mb-2">📜 Spiritual and cultural impact</li>
+                      </ul>
                     </div>
                   </div>
                 </div>
+
+                <button 
+                  className="btn btn-primary btn-lg mt-3"
+                  onClick={() => {
+                    const firstContent = filteredContent[0];
+                    if (firstContent) handleContentSelect(firstContent);
+                  }}
+                  disabled={filteredContent.length === 0}
+                >
+                  🚀 Start Learning
+                </button>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
+
+       {/* SLIDING RECOMMENDATIONS PANEL */}
+        {useAdaptive && showSlidingRecommendations && (
+        <div 
+            className="sliding-recommendations-panel"
+            onClick={(e) => {
+            // Close panel if clicking on backdrop
+            if (e.target === e.currentTarget) {
+                setShowSlidingRecommendations(false);
+            }
+            }}
+        >
+            <div className="sliding-panel-header">
+            <h6 className="mb-0 text-primary">
+                🎯 Your Personalized Learning Path
+            </h6>
+            <button 
+                className="sliding-panel-close-btn"
+                onClick={() => setShowSlidingRecommendations(false)}
+                title="Close Recommendations"
+            >
+                ✕
+            </button>
+            </div>
+            <div className="sliding-panel-content">
+            <AdaptiveRecommendations 
+                onSelectContent={(content) => {
+                handleRecommendationSelect(content);
+                setShowSlidingRecommendations(false); // Auto-close when content selected
+                }}
+                onSelectQuiz={(quiz) => {
+                handleQuizRecommendationSelect(quiz);
+                setShowSlidingRecommendations(false); // Auto-close when quiz selected
+                }}
+                compactMode={false}
+            />
+            </div>
+        </div>
+        )}
+
+      {/* BOTTOM SECTIONS - Full AdaptiveRecommendations when not in learning mode */}
+      {(!activeContent && !activeQuiz && !useAdaptive) && (
+        <div className="progress-section bg-light border-top p-3">
+          <Progress />
+        </div>
+      )}
+
     </div>
   );
 };

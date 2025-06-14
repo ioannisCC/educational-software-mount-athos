@@ -18,9 +18,12 @@ const Module3 = ({ user }) => {
   const [error, setError] = useState(null);
   const [useAdaptive, setUseAdaptive] = useState(true);
   const [showRecommendations, setShowRecommendations] = useState(true);
+  const [contentFilter, setContentFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sidebarTab, setSidebarTab] = useState('content'); // content, quizzes, recommendations
   const [showEnvironmentalMap, setShowEnvironmentalMap] = useState(false);
+  const [showSlidingRecommendations, setShowSlidingRecommendations] = useState(false);
 
-  // Module ID for this page
   const moduleId = 3;
 
   useEffect(() => {
@@ -101,27 +104,23 @@ const Module3 = ({ user }) => {
 
   const handleQuizComplete = (results) => {
     console.log('Quiz completed with results:', results);
-    
-    if (useAdaptive) {
-      setTimeout(() => {
-        fetchModuleData();
-      }, 1000);
-    }
   };
 
   const handleContentComplete = (content, metrics) => {
     console.log('Content completed:', content.title, 'Metrics:', metrics);
-    
-    if (useAdaptive) {
-      setTimeout(() => {
-        fetchModuleData();
-      }, 1000);
-    }
   };
 
   const handleNeedHelp = (content, metrics) => {
     console.log('User needs help with:', content.title, 'Metrics:', metrics);
-    alert(`🌿 Help for "${content.title}": Focus on the relationship between geography and biodiversity. Consider how the isolation of Mount Athos has preserved its natural environment!`);
+    
+    const helpMessages = {
+      text: `🌿 For "${content.title}": Focus on the relationship between geography and biodiversity. Consider how the isolation of Mount Athos has preserved its natural environment. Pay attention to the different elevation zones and their unique ecosystems.`,
+      image: `🖼️ For "${content.title}": Look for different vegetation zones, wildlife, and landscape features. Notice how elevation affects the ecosystem. Identify coastal, forest, and alpine zones with their distinct characteristics.`,
+      video: `🎬 For "${content.title}": Pay attention to the various ecological zones and conservation efforts. Note the relationship between nature and monastic life. Watch for endemic species and conservation practices.`
+    };
+    
+    const message = helpMessages[content.type] || helpMessages.text;
+    alert(message);
   };
 
   const handleRecommendationSelect = (recommendedContent) => {
@@ -144,25 +143,109 @@ const Module3 = ({ user }) => {
     }
   };
 
-  if (loading) return <div className="text-center my-4">Loading module data...</div>;
-  if (error) return <div className="alert alert-danger">{error}</div>;
+  // Get display content with filtering
+  const getDisplayContent = () => {
+    const sourceContent = useAdaptive && adaptiveContent.length > 0 ? adaptiveContent : content;
+    
+    if (contentFilter === 'all') {
+      return sourceContent;
+    }
+    return sourceContent.filter(item => item.type === contentFilter);
+  };
 
-  const displayContent = useAdaptive && adaptiveContent.length > 0 ? adaptiveContent : content;
-  const displayQuizzes = useAdaptive && adaptiveQuizzes.length > 0 ? adaptiveQuizzes : quizzes;
+  // Apply user preference filtering
+  const getFilteredContent = () => {
+    const displayContent = getDisplayContent();
+    
+    let filtered = displayContent;
+    
+    // Apply search filter
+    if (searchTerm) {
+      filtered = filtered.filter(item => 
+        item.title.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    if (!user?.preferences?.learningStyle) {
+      return filtered;
+    }
 
-  const filteredContent = user?.preferences?.learningStyle === 'visual'
-    ? displayContent.filter(c => c.type !== 'text').concat(displayContent.filter(c => c.type === 'text'))
-    : displayContent.filter(c => c.type === 'text').concat(displayContent.filter(c => c.type !== 'text'));
+    // For visual learners, prioritize visual content
+    if (user.preferences.learningStyle === 'visual') {
+      const visualContent = filtered.filter(c => c.type !== 'text');
+      const textContent = filtered.filter(c => c.type === 'text');
+      return [...visualContent, ...textContent];
+    } else {
+      // For textual learners, prioritize text content
+      const textContent = filtered.filter(c => c.type === 'text');
+      const visualContent = filtered.filter(c => c.type !== 'text');
+      return [...textContent, ...visualContent];
+    }
+  };
+
+  const getFilteredQuizzes = () => {
+    const sourceQuizzes = useAdaptive && adaptiveQuizzes.length > 0 ? adaptiveQuizzes : quizzes;
+    
+    if (searchTerm) {
+      return sourceQuizzes.filter(quiz => 
+        quiz.title.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    return sourceQuizzes;
+  };
+
+  const getContentTypeIcon = (type) => {
+    switch (type) {
+      case 'text': return '📖';
+      case 'image': return '🖼️';
+      case 'video': return '🎬';
+      default: return '📄';
+    }
+  };
+
+  const getContentTypeColor = (type) => {
+    switch (type) {
+      case 'text': return 'primary';
+      case 'image': return 'success';
+      case 'video': return 'danger';
+      default: return 'secondary';
+    }
+  };
+
+  if (loading) return <div className="text-center py-5">Loading module data...</div>;
+  if (error) return <div className="alert alert-danger m-3">{error}</div>;
+
+  const filteredContent = getFilteredContent();
+  const filteredQuizzes = getFilteredQuizzes();
 
   return (
-    <div className="module-container">
-      <div className="row">
-        <div className="col-md-3">
-          {/* Module Header with Adaptive Toggle */}
-          <div className="card mb-3">
-            <div className="card-header bg-info text-white">
-              <h5 className="mb-1">Module 3: Natural Environment & Geography</h5>
-              <div className="form-check form-switch">
+    <div className="module-redesign" style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+      
+      {/* COMPACT HEADER */}
+      <div className="module-header bg-info text-white p-3 shadow-sm">
+        <div className="container-fluid">
+          <div className="row align-items-center">
+            <div className="col-md-8">
+              <div className="d-flex align-items-center gap-3">
+                <h4 className="mb-0">🌿 Module 3: Natural Environment & Geography</h4>
+                <div className="d-flex gap-2">
+                  <span className="badge bg-light text-info">
+                    {filteredContent.length} Contents
+                  </span>
+                  <span className="badge bg-light text-info">
+                    {filteredQuizzes.length} Quizzes
+                  </span>
+                  {user?.preferences?.learningStyle && (
+                    <span className="badge bg-warning">
+                      {user.preferences.learningStyle === 'visual' ? '👁️ Visual' : '📖 Textual'}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="col-md-4 text-end">
+              <div className="form-check form-switch d-inline-block me-3">
                 <input 
                   className="form-check-input" 
                   type="checkbox" 
@@ -170,270 +253,458 @@ const Module3 = ({ user }) => {
                   checked={useAdaptive}
                   onChange={(e) => setUseAdaptive(e.target.checked)}
                 />
-                <label className="form-check-label small" htmlFor="adaptiveToggle">
-                  🎯 Adaptive Learning {useAdaptive && adaptiveContent.length > 0 ? '(Active)' : '(Fallback)'}
+                <label className="form-check-label text-white" htmlFor="adaptiveToggle">
+                  🎯 Adaptive
+                </label>
+              </div>
+              <div className="form-check form-switch d-inline-block">
+                <input 
+                  className="form-check-input" 
+                  type="checkbox" 
+                  id="recommendationsToggle"
+                  checked={showRecommendations}
+                  onChange={(e) => setShowRecommendations(e.target.checked)}
+                />
+                <label className="form-check-label text-white" htmlFor="recommendationsToggle">
+                  💡 Recommendations
                 </label>
               </div>
             </div>
           </div>
-
-          {/* Environmental Features */}
-          <div className="card mb-3">
-            <div className="card-body py-2">
-              <button 
-                className={`btn btn-success w-100 mb-2 ${showEnvironmentalMap ? 'active' : ''}`}
-                onClick={handleShowEnvironmentalMap}
-              >
-                🌿 Environmental Zones Map
-              </button>
-              <small className="text-muted">Explore biodiversity by elevation</small>
-            </div>
-          </div>
-
-          {/* Content and Quiz Navigation */}
-          <div className="card mb-4">
-            <div className="card-body p-0">
-              <ul className="list-group list-group-flush">
-                <li className="list-group-item bg-light fw-bold d-flex justify-content-between">
-                  Content
-                  {useAdaptive && adaptiveContent.length > 0 && (
-                    <span className="badge bg-info">Smart</span>
-                  )}
-                </li>
-                {filteredContent.map(item => (
-                  <li 
-                    key={item._id} 
-                    className={`list-group-item list-group-item-action ${activeContent?._id === item._id ? 'active' : ''}`}
-                    onClick={() => handleContentSelect(item)}
-                    style={{cursor: 'pointer'}}
-                  >
-                    <div className="d-flex justify-content-between align-items-center">
-                      <span>{item.title}</span>
-                      <div>
-                        {item.difficulty === 'advanced' && 
-                          <span className="badge bg-warning ms-1">Advanced</span>
-                        }
-                        {item.adaptiveMetadata?.recommended && 
-                          <span className="badge bg-success ms-1">⭐</span>
-                        }
-                        {item.adaptiveMetadata?.priority === 'high' && 
-                          <span className="badge bg-danger ms-1">!</span>
-                        }
-                      </div>
-                    </div>
-                    {item.adaptiveMetadata?.reason && (
-                      <small className="text-muted d-block mt-1">
-                        💡 {item.adaptiveMetadata.reason}
-                      </small>
-                    )}
-                  </li>
-                ))}
-                
-                <li className="list-group-item bg-light fw-bold d-flex justify-content-between">
-                  Quizzes
-                  {useAdaptive && adaptiveQuizzes.length > 0 && (
-                    <span className="badge bg-info">Smart</span>
-                  )}
-                </li>
-                {displayQuizzes.map(quiz => (
-                  <li 
-                    key={quiz._id} 
-                    className={`list-group-item list-group-item-action ${activeQuiz?._id === quiz._id ? 'active' : ''}`}
-                    onClick={() => handleQuizSelect(quiz)}
-                    style={{cursor: 'pointer'}}
-                  >
-                    <div className="d-flex justify-content-between align-items-center">
-                      <span>{quiz.title}</span>
-                      <div>
-                        {quiz.adaptiveMetadata?.shouldRetake && 
-                          <span className="badge bg-warning ms-1">🔄</span>
-                        }
-                        {quiz.adaptiveMetadata?.recommended && 
-                          <span className="badge bg-success ms-1">⭐</span>
-                        }
-                        {quiz.adaptiveMetadata?.lastScore && 
-                          <span className="badge bg-info ms-1">{quiz.adaptiveMetadata.lastScore}%</span>
-                        }
-                      </div>
-                    </div>
-                    {quiz.adaptiveMetadata?.reason && (
-                      <small className="text-muted d-block mt-1">
-                        💡 {quiz.adaptiveMetadata.reason}
-                      </small>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-          
-          {/* Toggle Recommendations */}
-          {useAdaptive && (
-            <div className="card mb-3">
-              <div className="card-body py-2">
-                <div className="form-check form-switch">
-                  <input 
-                    className="form-check-input" 
-                    type="checkbox" 
-                    id="recommendationsToggle"
-                    checked={showRecommendations}
-                    onChange={(e) => setShowRecommendations(e.target.checked)}
-                  />
-                  <label className="form-check-label small" htmlFor="recommendationsToggle">
-                    Show Recommendations
-                  </label>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* User progress */}
-          <Progress />
         </div>
+      </div>
+
+      {/* MAIN LEARNING AREA */}
+      <div className="main-learning-area flex-grow-1 d-flex" style={{ minHeight: 0 }}>
         
-        <div className="col-md-9">
-          {/* Adaptive Recommendations */}
-          {useAdaptive && showRecommendations && (
-            <AdaptiveRecommendations 
-              onSelectContent={handleRecommendationSelect}
-              onSelectQuiz={handleQuizRecommendationSelect}
-            />
-          )}
-
-          {/* Environmental Zones Map */}
-          {showEnvironmentalMap && (
-            <div className="card mb-4">
-              <div className="card-header bg-success text-white">
-                <h5 className="mb-0">🌿 Environmental Zones of Mount Athos</h5>
-              </div>
-              <div className="card-body">
-                <div className="row">
-                  <div className="col-md-4">
-                    <div className="card border-info">
-                      <div className="card-header bg-info text-white">
-                        <h6>🌊 Coastal Zone (0-400m)</h6>
-                      </div>
-                      <div className="card-body">
-                        <ul className="small">
-                          <li>Mediterranean scrub</li>
-                          <li>Olive groves</li>
-                          <li>Arbutus & wild olive</li>
-                          <li>Monastery gardens</li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="col-md-4">
-                    <div className="card border-warning">
-                      <div className="card-header bg-warning text-dark">
-                        <h6>🌳 Forest Zone (400-1000m)</h6>
-                      </div>
-                      <div className="card-body">
-                        <ul className="small">
-                          <li>Chestnut forests</li>
-                          <li>Oak woodlands</li>
-                          <li>Black pine stands</li>
-                          <li>Rich understory</li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="col-md-4">
-                    <div className="card border-success">
-                      <div className="card-header bg-success text-white">
-                        <h6>⛰️ Alpine Zone (1000m+)</h6>
-                      </div>
-                      <div className="card-body">
-                        <ul className="small">
-                          <li>Pine woodlands</li>
-                          <li>Juniper scrub</li>
-                          <li>Alpine plants</li>
-                          <li>Endemic species</li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-3 alert alert-info">
-                  <h6>🔬 Biodiversity Highlights:</h6>
-                  <p className="mb-1"><strong>35+ endemic plant species</strong> found nowhere else on Earth</p>
-                  <p className="mb-1"><strong>Mediterranean monk seal</strong> - critically endangered marine mammal</p>
-                  <p className="mb-0"><strong>Large mammals:</strong> Grey wolf, wild boar, roe deer, golden jackal</p>
-                </div>
-              </div>
+        {/* COMPACT SIDEBAR */}
+        <div className="sidebar bg-light border-end" style={{ width: '320px', display: 'flex', flexDirection: 'column' }}>
+          
+          {/* Sidebar Header with Search and Environmental Map */}
+          <div className="sidebar-header p-3 border-bottom">
+            {/* Environmental Map Button */}
+            <button 
+              className={`btn btn-success w-100 mb-2 ${showEnvironmentalMap ? 'active' : ''}`}
+              onClick={handleShowEnvironmentalMap}
+            >
+              🌿 Environmental Zones Map
+            </button>
+            
+            <div className="input-group input-group-sm mb-2">
+              <span className="input-group-text">🔍</span>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Search content & quizzes..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              {searchTerm && (
+                <button 
+                  className="btn btn-outline-secondary"
+                  onClick={() => setSearchTerm('')}
+                >
+                  ✕
+                </button>
+              )}
             </div>
-          )}
+            
+            {/* Filter Buttons */}
+            <div className="btn-group w-100" role="group">
+              <input type="radio" className="btn-check" name="contentFilter" id="filter-all" 
+                     checked={contentFilter === 'all'} onChange={() => setContentFilter('all')} />
+              <label className="btn btn-outline-secondary btn-sm" htmlFor="filter-all">All</label>
+              
+              <input type="radio" className="btn-check" name="contentFilter" id="filter-text" 
+                     checked={contentFilter === 'text'} onChange={() => setContentFilter('text')} />
+              <label className="btn btn-outline-primary btn-sm" htmlFor="filter-text">📖</label>
+              
+              <input type="radio" className="btn-check" name="contentFilter" id="filter-image" 
+                     checked={contentFilter === 'image'} onChange={() => setContentFilter('image')} />
+              <label className="btn btn-outline-success btn-sm" htmlFor="filter-image">🖼️</label>
+              
+              <input type="radio" className="btn-check" name="contentFilter" id="filter-video" 
+                     checked={contentFilter === 'video'} onChange={() => setContentFilter('video')} />
+              <label className="btn btn-outline-danger btn-sm" htmlFor="filter-video">🎬</label>
+            </div>
+          </div>
 
-          {/* Content display area */}
-          {activeContent && (
-            useAdaptive ? (
+          {/* Sidebar Navigation Tabs */}
+          <ul className="nav nav-tabs nav-fill">
+            <li className="nav-item">
+              <button 
+                className={`nav-link ${sidebarTab === 'content' ? 'active' : ''}`}
+                onClick={() => setSidebarTab('content')}
+              >
+                📚 Content ({filteredContent.length})
+              </button>
+            </li>
+            <li className="nav-item">
+              <button 
+                className={`nav-link ${sidebarTab === 'quizzes' ? 'active' : ''}`}
+                onClick={() => setSidebarTab('quizzes')}
+              >
+                🧠 Quizzes ({filteredQuizzes.length})
+              </button>
+            </li>
+            {useAdaptive && (
+              <li className="nav-item">
+              <button 
+                className={`nav-link ${showSlidingRecommendations ? 'active' : ''}`}
+                onClick={() => setShowSlidingRecommendations(!showSlidingRecommendations)}
+              >
+                🎯 Smart {showSlidingRecommendations ? '▲' : '▼'}
+              </button>
+            </li>
+            )}
+          </ul>
+
+          {/* SCROLLABLE CONTENT LIST */}
+          <div className="sidebar-content flex-grow-1 overflow-auto">
+            
+            {sidebarTab === 'content' && (
+              <div className="content-list">
+                {filteredContent.length === 0 ? (
+                  <div className="p-3 text-center text-muted">
+                    <div className="mb-2">📭</div>
+                    <div>No content matches your filters</div>
+                  </div>
+                ) : (
+                  filteredContent.map(item => (
+                    <div
+                      key={item._id}
+                      className={`content-item p-3 border-bottom cursor-pointer hover-bg-light ${
+                        activeContent?._id === item._id ? 'bg-info text-white' : ''
+                      }`}
+                      onClick={() => handleContentSelect(item)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <div className="d-flex align-items-start gap-2">
+                        <span className="content-icon">{getContentTypeIcon(item.type)}</span>
+                        <div className="flex-grow-1">
+                          <div className="content-title fw-medium small">{item.title}</div>
+                          <div className="content-badges mt-1">
+                            <span className={`badge bg-${getContentTypeColor(item.type)} badge-sm me-1`}>
+                              {item.type}
+                            </span>
+                            {item.difficulty === 'advanced' && 
+                              <span className="badge bg-warning badge-sm me-1">Advanced</span>
+                            }
+                            {item.adaptiveMetadata?.recommended && 
+                              <span className="badge bg-success badge-sm me-1">⭐</span>
+                            }
+                            {item.adaptiveMetadata?.priority === 'high' && 
+                              <span className="badge bg-danger badge-sm">!</span>
+                            }
+                          </div>
+                          {item.adaptiveMetadata?.reason && (
+                            <div className="content-reason small text-muted mt-1">
+                              💡 {item.adaptiveMetadata.reason}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {sidebarTab === 'quizzes' && (
+              <div className="quiz-list">
+                {filteredQuizzes.length === 0 ? (
+                  <div className="p-3 text-center text-muted">
+                    <div className="mb-2">🎯</div>
+                    <div>No quizzes match your search</div>
+                  </div>
+                ) : (
+                  filteredQuizzes.map(quiz => (
+                    <div
+                      key={quiz._id}
+                      className={`quiz-item p-3 border-bottom cursor-pointer hover-bg-light ${
+                        activeQuiz?._id === quiz._id ? 'bg-info text-white' : ''
+                      }`}
+                      onClick={() => handleQuizSelect(quiz)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <div className="d-flex align-items-start gap-2">
+                        <span className="quiz-icon">🧠</span>
+                        <div className="flex-grow-1">
+                          <div className="quiz-title fw-medium small">{quiz.title}</div>
+                          <div className="quiz-badges mt-1">
+                            {quiz.adaptiveMetadata?.shouldRetake && 
+                              <span className="badge bg-warning badge-sm me-1">🔄</span>
+                            }
+                            {quiz.adaptiveMetadata?.recommended && 
+                              <span className="badge bg-success badge-sm me-1">⭐</span>
+                            }
+                            {quiz.adaptiveMetadata?.lastScore && 
+                              <span className="badge bg-info badge-sm me-1">{quiz.adaptiveMetadata.lastScore}%</span>
+                            }
+                          </div>
+                          {quiz.adaptiveMetadata?.reason && (
+                            <div className="quiz-reason small text-muted mt-1">
+                              💡 {quiz.adaptiveMetadata.reason}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+          </div>
+        </div>
+
+        {/* MAIN CONTENT AREA */}
+        <div className="content-area flex-grow-1 d-flex flex-column" style={{ minWidth: 0 }}>
+          <div className="content-display flex-grow-1 overflow-auto p-3">
+            
+            {/* Environmental Zones Map */}
+            {showEnvironmentalMap && (
+              <div className="environmental-map">
+                <div className="card mb-4">
+                  <div className="card-header bg-success text-white">
+                    <h5 className="mb-0">🌿 Environmental Zones of Mount Athos</h5>
+                  </div>
+                  <div className="card-body">
+                    <div className="row mb-4">
+                      <div className="col-md-4">
+                        <div className="card border-info h-100">
+                          <div className="card-header bg-info text-white">
+                            <h6 className="mb-0">🌊 Coastal Zone (0-400m)</h6>
+                          </div>
+                          <div className="card-body">
+                            <ul className="small">
+                              <li>Mediterranean scrub</li>
+                              <li>Olive groves</li>
+                              <li>Arbutus & wild olive</li>
+                              <li>Monastery gardens</li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="col-md-4">
+                        <div className="card border-warning h-100">
+                          <div className="card-header bg-warning text-dark">
+                            <h6 className="mb-0">🌳 Forest Zone (400-1000m)</h6>
+                          </div>
+                          <div className="card-body">
+                            <ul className="small">
+                              <li>Chestnut forests</li>
+                              <li>Oak woodlands</li>
+                              <li>Black pine stands</li>
+                              <li>Rich understory</li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="col-md-4">
+                        <div className="card border-success h-100">
+                          <div className="card-header bg-success text-white">
+                            <h6 className="mb-0">⛰️ Alpine Zone (1000m+)</h6>
+                          </div>
+                          <div className="card-body">
+                            <ul className="small">
+                              <li>Pine woodlands</li>
+                              <li>Juniper scrub</li>
+                              <li>Alpine plants</li>
+                              <li>Endemic species</li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="alert alert-info">
+                      <h6>🔬 Biodiversity Highlights:</h6>
+                      <p className="mb-1"><strong>35+ endemic plant species</strong> found nowhere else on Earth</p>
+                      <p className="mb-1"><strong>Mediterranean monk seal</strong> - critically endangered marine mammal</p>
+                      <p className="mb-0"><strong>Large mammals:</strong> Grey wolf, wild boar, roe deer, golden jackal</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Content display area */}
+            {activeContent && (
               <AdaptiveContentViewer
                 content={activeContent}
                 onComplete={handleContentComplete}
                 onNeedHelp={handleNeedHelp}
               />
-            ) : (
-              <div className="card">
-                <div className="card-header">
-                  <h5>{activeContent.title}</h5>
+            )}
+            
+            {/* Quiz display area */}
+            {activeQuiz && (
+              <Quiz 
+                quizId={activeQuiz._id} 
+                onCompleted={handleQuizComplete} 
+              />
+            )}
+            
+            {/* Enhanced Default view */}
+            {!activeContent && !activeQuiz && !showEnvironmentalMap && (
+              <div className="welcome-screen text-center py-5">
+                <div className="mb-4">
+                  <h2 className="text-info mb-3">🌿 Welcome to Module 3: Natural Environment & Geography</h2>
+                  <p className="lead text-muted">
+                    Discover the pristine biodiversity, unique geography, and conservation success of this natural sanctuary in the Aegean Sea.
+                  </p>
                 </div>
-                <div className="card-body">
-                  {activeContent.type === 'text' ? (
-                    <div dangerouslySetInnerHTML={{ __html: activeContent.content }} />
-                  ) : activeContent.type === 'image' ? (
-                    <img 
-                      src={activeContent.content} 
-                      alt={activeContent.title} 
-                      className="img-fluid" 
-                    />
-                  ) : (
-                    <div className="ratio ratio-16x9">
-                      <iframe 
-                        src={activeContent.content} 
-                        title={activeContent.title} 
-                        allowFullScreen
-                      ></iframe>
+                
+                {useAdaptive && adaptiveContent.length > 0 ? (
+                  <div className="alert alert-info mb-4">
+                    <h6>🎯 Adaptive Learning Active!</h6>
+                    <p className="mb-2">Content is personalized for environmental and conservation learning:</p>
+                    <ul className="mb-0 text-start">
+                      <li>🌿 Environmental zone visualization</li>
+                      <li>🦭 Endemic species focus</li>
+                      <li>📊 Conservation-based adaptive content</li>
+                      <li>🔬 Scientific approach to biodiversity learning</li>
+                      {user?.preferences?.learningStyle === 'visual' && (
+                        <li>👁️ Visual nature content prioritized</li>
+                      )}
+                      {user?.preferences?.learningStyle === 'textual' && (
+                        <li>📖 Detailed environmental descriptions prioritized</li>
+                      )}
+                    </ul>
+                  </div>
+                ) : (
+                  <div className="alert alert-warning mb-4">
+                    <h6>📚 Standard Learning Mode</h6>
+                    <p className="mb-0">Enable adaptive learning for a personalized environmental exploration experience.</p>
+                  </div>
+                )}
+
+                <div className="row mb-4">
+                  <div className="col-md-6 offset-md-3">
+                    <div className="card bg-light border-0">
+                      <div className="card-body">
+                        <h6>📊 Module Overview</h6>
+                        <div className="row text-center">
+                          <div className="col-3">
+                            <div className="text-primary">
+                              <strong>{content.filter(c => c.type === 'text').length}</strong>
+                              <br /><small>📖 Texts</small>
+                            </div>
+                          </div>
+                          <div className="col-3">
+                            <div className="text-success">
+                              <strong>{content.filter(c => c.type === 'image').length}</strong>
+                              <br /><small>🖼️ Images</small>
+                            </div>
+                          </div>
+                          <div className="col-3">
+                            <div className="text-danger">
+                              <strong>{content.filter(c => c.type === 'video').length}</strong>
+                              <br /><small>🎬 Videos</small>
+                            </div>
+                          </div>
+                          <div className="col-3">
+                            <div className="text-warning">
+                              <strong>{quizzes.length}</strong>
+                              <br /><small>🧠 Quizzes</small>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  )}
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <h6>🌿 What You'll Learn:</h6>
+                  <div className="row">
+                    <div className="col-md-6">
+                      <ul className="list-unstyled text-start">
+                        <li className="mb-2">🗺️ Chalkidiki Peninsula geography</li>
+                        <li className="mb-2">🦭 Endemic species and monk seals</li>
+                        <li className="mb-2">🌳 Forest zones and biodiversity</li>
+                      </ul>
+                    </div>
+                    <div className="col-md-6">
+                      <ul className="list-unstyled text-start">
+                        <li className="mb-2">♻️ Faith-based conservation model</li>
+                        <li className="mb-2">🌊 Coastal and marine ecosystems</li>
+                        <li className="mb-2">⛰️ Alpine environments and climate zones</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="d-flex justify-content-center gap-3">
+                  <button 
+                    className="btn btn-info btn-lg"
+                    onClick={() => {
+                      const firstContent = filteredContent[0];
+                      if (firstContent) handleContentSelect(firstContent);
+                    }}
+                    disabled={filteredContent.length === 0}
+                  >
+                    🚀 Start Learning
+                  </button>
+                  <button 
+                    className="btn btn-success btn-lg"
+                    onClick={handleShowEnvironmentalMap}
+                  >
+                    🌿 View Environmental Map
+                  </button>
                 </div>
               </div>
-            )
-          )}
-          
-          {/* Quiz display area */}
-          {activeQuiz && (
-            <Quiz 
-              quizId={activeQuiz._id} 
-              onCompleted={handleQuizComplete} 
-            />
-          )}
-          
-          {/* Default view when nothing is selected */}
-          {!activeContent && !activeQuiz && !showEnvironmentalMap && (
-            <div className="alert alert-info">
-              <h4>Welcome to Module 3: Natural Environment & Geography</h4>
-              <p>
-                {useAdaptive && adaptiveContent.length > 0
-                  ? '🌿 Discover the pristine natural sanctuary of Mount Athos with personalized environmental education! Explore biodiversity zones and conservation efforts.' 
-                  : 'Explore the remarkable natural environment and unique geography of the Holy Mountain.'
-                }
-              </p>
-              
-              {useAdaptive && adaptiveContent.length > 0 && (
-                <div className="mt-3">
-                  <h6>🌟 Smart Features Active:</h6>
-                  <ul className="mb-0">
-                    <li>🌿 Environmental zone visualization</li>
-                    <li>🦭 Endemic species focus</li>
-                    <li>📊 Conservation-based adaptive content</li>
-                    <li>🔬 Scientific approach to biodiversity learning</li>
-                  </ul>
-                </div>
-              )}
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
+
+       {/* SLIDING RECOMMENDATIONS PANEL */}
+        {useAdaptive && showSlidingRecommendations && (
+        <div 
+            className="sliding-recommendations-panel"
+            onClick={(e) => {
+            // Close panel if clicking on backdrop
+            if (e.target === e.currentTarget) {
+                setShowSlidingRecommendations(false);
+            }
+            }}
+        >
+            <div className="sliding-panel-header">
+            <h6 className="mb-0 text-primary">
+                🎯 Your Personalized Learning Path
+            </h6>
+            <button 
+                className="sliding-panel-close-btn"
+                onClick={() => setShowSlidingRecommendations(false)}
+                title="Close Recommendations"
+            >
+                ✕
+            </button>
+            </div>
+            <div className="sliding-panel-content">
+            <AdaptiveRecommendations 
+                onSelectContent={(content) => {
+                handleRecommendationSelect(content);
+                setShowSlidingRecommendations(false); // Auto-close when content selected
+                }}
+                onSelectQuiz={(quiz) => {
+                handleQuizRecommendationSelect(quiz);
+                setShowSlidingRecommendations(false); // Auto-close when quiz selected
+                }}
+                compactMode={false}
+            />
+            </div>
+        </div>
+        )}
+
+      {/* BOTTOM SECTIONS - Full AdaptiveRecommendations when not in learning mode */}
+      {(!activeContent && !activeQuiz && !showEnvironmentalMap && !useAdaptive) && (
+        <div className="progress-section bg-light border-top p-3">
+          <Progress />
+        </div>
+      )}
+
     </div>
   );
 };

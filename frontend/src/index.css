@@ -11,3 +11,531 @@ body {
     font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
       monospace;
   }
+
+/* Global Module Layout */
+.module-redesign {
+    background-color: #f8f9fa;
+  }
+  
+  /* Compact Header */
+  .module-header {
+    flex-shrink: 0;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    z-index: 10;
+  }
+  
+  .module-header .badge {
+    font-size: 0.75em;
+  }
+  
+  /* Main Learning Area */
+  .main-learning-area {
+    background: white;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+  }
+  
+  /* Sidebar Styles */
+  .sidebar {
+    flex-shrink: 0;
+    box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+    z-index: 5;
+  }
+  
+  .sidebar-header {
+    flex-shrink: 0;
+    background: white;
+  }
+  
+  .sidebar-content {
+    background: #fafafa;
+  }
+  
+  /* Sidebar Tabs */
+  .sidebar .nav-tabs {
+    border-bottom: 1px solid #dee2e6;
+  }
+  
+  .sidebar .nav-tabs .nav-link {
+    background: none;
+    border: none;
+    color: #6c757d;
+    font-size: 0.875rem;
+    padding: 0.75rem 0.5rem;
+    transition: all 0.2s ease;
+  }
+  
+  .sidebar .nav-tabs .nav-link:hover {
+    background: rgba(0,123,255,0.1);
+    color: #0d6efd;
+  }
+  
+  .sidebar .nav-tabs .nav-link.active {
+    background: white;
+    color: #0d6efd;
+    border-bottom: 2px solid #0d6efd;
+    font-weight: 500;
+  }
+  
+  /* Content and Quiz Items */
+  .content-item,
+  .quiz-item {
+    transition: all 0.2s ease;
+    border-left: 3px solid transparent;
+  }
+  
+  .content-item:hover,
+  .quiz-item:hover {
+    background-color: #f8f9fa !important;
+    border-left-color: #0d6efd;
+    transform: translateX(2px);
+  }
+  
+  .content-item.bg-primary:hover,
+  .quiz-item.bg-primary:hover {
+    background-color: #0d6efd !important;
+    transform: translateX(0);
+  }
+  
+  .content-item.bg-success:hover,
+  .quiz-item.bg-success:hover {
+    background-color: #198754 !important;
+    transform: translateX(0);
+  }
+  
+  .content-item.bg-info:hover,
+  .quiz-item.bg-info:hover {
+    background-color: #0dcaf0 !important;
+    transform: translateX(0);
+  }
+  
+  .content-item:active,
+  .quiz-item:active {
+    transform: translateX(1px);
+  }
+  
+  /* Content Area */
+  .content-area {
+    background: white;
+  }
+  
+  .content-display {
+    background: #ffffff;
+  }
+  
+  /* Welcome Screen */
+  .welcome-screen {
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  
+  .welcome-screen .card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  
+  .welcome-screen .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  }
+  
+  /* Progress Section */
+  .progress-section {
+    flex-shrink: 0;
+    border-top: 2px solid #e9ecef;
+  }
+  
+  .progress-item {
+    padding: 1rem;
+  }
+  
+  .progress-item .display-6 {
+    font-size: 2rem;
+    font-weight: 600;
+  }
+  
+  /* Recommendations Section */
+  .recommendations-section {
+    flex-shrink: 0;
+    background: linear-gradient(135deg, #0d6efd 0%, #6610f2 100%) !important;
+  }
+  
+  .recommendations-section .card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    cursor: pointer;
+  }
+  
+  .recommendations-section .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
+  
+  /* Badges */
+  .badge-sm {
+    font-size: 0.7em;
+    padding: 0.25em 0.5em;
+  }
+  
+  /* Scrollbar Styling */
+  .sidebar-content::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .sidebar-content::-webkit-scrollbar-track {
+    background: #f1f1f1;
+  }
+  
+  .sidebar-content::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+  }
+  
+  .sidebar-content::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+  }
+  
+  .content-display::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  .content-display::-webkit-scrollbar-track {
+    background: #f1f1f1;
+  }
+  
+  .content-display::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+  }
+  
+  .content-display::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+  }
+  
+  /* Responsive Design */
+  @media (max-width: 768px) {
+    .module-redesign {
+      height: auto !important;
+    }
+    
+    .main-learning-area {
+      flex-direction: column;
+      height: auto;
+    }
+    
+    .sidebar {
+      width: 100% !important;
+      max-height: 400px;
+    }
+    
+    .content-area {
+      min-height: 500px;
+    }
+    
+    .module-header .col-md-4 {
+      text-align: start !important;
+      margin-top: 1rem;
+    }
+    
+    .module-header .d-flex {
+      flex-direction: column;
+      align-items: flex-start !important;
+      gap: 1rem !important;
+    }
+    
+    .progress-section .row,
+    .recommendations-section .row {
+      text-align: center;
+    }
+    
+    .progress-item {
+      margin-bottom: 1rem;
+    }
+  }
+  
+  @media (max-width: 576px) {
+    .sidebar {
+      max-height: 300px;
+    }
+    
+    .sidebar-header {
+      padding: 1rem;
+    }
+    
+    .content-item,
+    .quiz-item {
+      padding: 1rem;
+    }
+    
+    .module-header {
+      padding: 1rem;
+    }
+    
+    .module-header h4 {
+      font-size: 1.1rem;
+    }
+    
+    .welcome-screen {
+      padding: 2rem 0;
+    }
+    
+    .welcome-screen h2 {
+      font-size: 1.5rem;
+    }
+  }
+  
+  /* Animation for smooth transitions */
+  @keyframes slideInFromLeft {
+    0% {
+      transform: translateX(-100%);
+      opacity: 0;
+    }
+    100% {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+  
+  @keyframes slideInFromRight {
+    0% {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    100% {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+  
+  @keyframes fadeIn {
+    0% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+  
+  .sidebar {
+    animation: slideInFromLeft 0.3s ease-out;
+  }
+  
+  .content-area {
+    animation: slideInFromRight 0.3s ease-out;
+  }
+  
+  .welcome-screen {
+    animation: fadeIn 0.5s ease-out;
+  }
+  
+  /* Focus styles for accessibility */
+  .content-item:focus,
+  .quiz-item:focus {
+    outline: 2px solid #0d6efd;
+    outline-offset: 2px;
+  }
+  
+  .nav-link:focus {
+    box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.25);
+  }
+  
+  /* Loading states */
+  .loading-skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+  }
+  
+  @keyframes loading {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+  
+  /* Enhanced hover effects */
+  .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  
+  .card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  }
+  
+  /* Search input styling */
+  .sidebar-header .input-group {
+    border-radius: 0.375rem;
+    overflow: hidden;
+  }
+  
+  .sidebar-header .input-group .form-control {
+    border: 1px solid #ced4da;
+  }
+  
+  .sidebar-header .input-group .form-control:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+  }
+  
+  /* Content type indicators */
+  .content-icon,
+  .quiz-icon {
+    font-size: 1.1em;
+    flex-shrink: 0;
+  }
+  
+  /* Improved spacing and typography */
+  .content-title,
+  .quiz-title {
+    line-height: 1.3;
+    font-size: 0.9rem;
+  }
+  
+  .content-reason,
+  .quiz-reason {
+    font-size: 0.8rem;
+    line-height: 1.2;
+  }
+  
+  /* Compact Recommendations Styling */
+  .compact-recommendations {
+    background: #f8f9fa;
+    border-radius: 0.375rem;
+    padding: 0.5rem;
+  }
+  
+  .compact-recommendations .hover-bg-primary:hover {
+    background-color: #0d6efd !important;
+    color: white !important;
+    transform: translateX(2px);
+    transition: all 0.2s ease;
+  }
+  
+  .compact-recommendations .progress {
+    background-color: #e9ecef;
+  }
+  
+  .compact-recommendations .bg-light:hover {
+    background-color: #e9ecef !important;
+  }
+  
+  /* Filter button group styling */
+  .btn-group .btn-check:checked + .btn {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    color: white;
+  }
+  
+  .btn-group .btn-outline-secondary:hover {
+    background-color: #6c757d;
+    border-color: #6c757d;
+  }
+  
+  .btn-group .btn-outline-primary:hover {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+  }
+  
+  .btn-group .btn-outline-success:hover {
+    background-color: #198754;
+    border-color: #198754;
+  }
+  
+  .btn-group .btn-outline-danger:hover {
+    background-color: #dc3545;
+    border-color: #dc3545;
+  }
+
+ /* Sliding Recommendations Panel */
+.sliding-recommendations-panel {
+    position: fixed;
+    top: 50px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    animation: slideDownFade 0.3s ease-out;
+  }
+  
+  .sliding-panel-header {
+    background: #ffffff;
+    padding: 1.5rem;
+    border-bottom: 2px solid #dee2e6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    position: relative;
+  }
+  
+  .sliding-panel-header h6 {
+    margin: 0;
+    flex-grow: 1;
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+  
+  .sliding-panel-close-btn {
+    background: #dc3545 !important;
+    border: none !important;
+    color: white !important;
+    border-radius: 50% !important;
+    width: 40px !important;
+    height: 40px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1.5rem !important;
+    font-weight: bold !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    margin-left: 1rem !important;
+  }
+  
+  .sliding-panel-close-btn:hover {
+    background: #bb2d3b !important;
+    transform: scale(1.1) !important;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important;
+  }
+  
+  .sliding-panel-content {
+    background: white;
+    flex-grow: 1;
+    overflow-y: auto;
+    max-height: 75vh;
+    margin: 0 2rem 2rem 2rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  }
+  
+  @keyframes slideDownFade {
+    0% {
+      transform: translateY(-100%);
+      opacity: 0;
+    }
+    100% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+  
+  /* Mobile responsive */
+  @media (max-width: 768px) {
+    .sliding-panel-header {
+      padding: 1rem;
+    }
+    
+    .sliding-panel-content {
+      margin: 0 1rem 1rem 1rem;
+      max-height: 70vh;
+    }
+    
+    .sliding-panel-close-btn {
+      width: 35px !important;
+      height: 35px !important;
+      font-size: 1.3rem !important;
+    }
+  }
